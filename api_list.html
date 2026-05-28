@@ -1,0 +1,23 @@
+async function listAllModels() {
+    const API_KEY = localStorage.getItem('GEMINI_KEY') || prompt("請輸入 API Key：");
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        console.log("=== 可用的 Gemini 模型清單 ===");
+        data.models.forEach(model => {
+            // 印出模型名稱與支援的功能
+            console.log(`模型 ID: ${model.name.replace('models/', '')}`);
+            console.log(`描述: ${model.description}`);
+            console.log(`支援功能: ${model.supportedGenerationMethods.join(', ')}`);
+            console.log("-----------------------------------");
+        });
+    } catch (error) {
+        console.error("無法取得模型清單:", error);
+    }
+}
+
+// 執行函式
+listAllModels();
