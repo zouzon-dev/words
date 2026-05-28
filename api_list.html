@@ -1,23 +1,327 @@
-async function listAllModels() {
-    const API_KEY = localStorage.getItem('GEMINI_KEY') || prompt("請輸入 API Key：");
-    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`;
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini 可用模型查詢系統</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        console.log("=== 可用的 Gemini 模型清單 ===");
-        data.models.forEach(model => {
-            // 印出模型名稱與支援的功能
-            console.log(`模型 ID: ${model.name.replace('models/', '')}`);
-            console.log(`描述: ${model.description}`);
-            console.log(`支援功能: ${model.supportedGenerationMethods.join(', ')}`);
-            console.log("-----------------------------------");
-        });
-    } catch (error) {
-        console.error("無法取得模型清單:", error);
-    }
-}
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            padding: 30px 20px;
+        }
 
-// 執行函式
-listAllModels();
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            color: white;
+            padding: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .api-key-section {
+            background: #f9fbfc;
+            padding: 20px;
+            border-bottom: 1px solid #e0e7ff;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .input-group {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #555;
+            font-size: 13px;
+        }
+
+        input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #667eea;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .model-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .model-card:hover {
+            border-color: #764ba2;
+            box-shadow: 0 4px 12px rgba(118, 75, 162, 0.15);
+        }
+
+        .model-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .model-desc {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            flex-grow: 1;
+        }
+
+        .badge-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .badge-method {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 40px;
+            color: #a0aec0;
+            width: 100%;
+            grid-column: 1 / -1;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f4f6;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-bar {
+            padding: 12px 30px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            font-size: 13px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Gemini API 可用模型查詢清單</h1>
+            <span style="font-size: 14px;">Version: v1beta</span>
+        </div>
+
+        <div class="api-key-section">
+            <div class="input-group">
+                <label for="api-key-input">Gemini API 金鑰 (與句子生成系統同步)</label>
+                <input type="password" id="api-key-input" placeholder="請輸入您的 gemini api key...">
+            </div>
+            <button id="fetch-btn" style="margin-top: 20px;">
+                <span>🚀 查詢模型清單</span>
+            </button>
+        </div>
+
+        <div class="content">
+            <div id="model-container" class="model-grid">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🤖</div>
+                    <p>請確認上方 API 金鑰後，點擊「查詢模型清單」按鈕。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-bar" id="status-text">
+            系統準備就緒。
+        </div>
+    </div>
+
+    <script>
+        // 初始化：自動讀取現有的 LocalStorage 金鑰
+        window.onload = function() {
+            const savedKey = localStorage.getItem('GEMINI_KEY');
+            if (savedKey) {
+                document.getElementById('api-key-input').value = savedKey;
+            }
+            
+            document.getElementById('fetch-btn').addEventListener('click', fetchModels);
+        };
+
+        async function fetchModels() {
+            const apiKeyInput = document.getElementById('api-key-input').value.trim();
+            const container = document.getElementById('model-container');
+            const statusText = document.getElementById('status-text');
+            const btn = document.getElementById('fetch-btn');
+
+            if (!apiKeyInput) {
+                alert('請先輸入 API 金鑰！');
+                return;
+            }
+
+            // 同步儲存到 LocalStorage，讓句子生成系統也能共用
+            localStorage.setItem('GEMINI_KEY', apiKeyInput);
+
+            // UI 進入載入狀態
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span> 查詢中...';
+            statusText.innerText = '正在向 Google API 請求最新模型清單...';
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="loading-spinner" style="width: 40px; height: 40px; border-width: 4px; margin-bottom: 15px;"></div>
+                    <p>正在載入 Google 官方模型清單，請稍候...</p>
+                </div>
+            `;
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKeyInput}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error.message || '金鑰錯誤或 API 限制');
+                }
+
+                if (!data.models || data.models.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">⚠️</div>
+                            <p>找不到任何可用的模型。</p>
+                        </div>
+                    `;
+                    statusText.innerText = '查詢完成，但無回傳模型。';
+                    return;
+                }
+
+                // 渲染模型卡片
+                container.innerHTML = data.models.map(model => {
+                    // 移除 "models/" 前綴，留下純名稱
+                    const cleanName = model.name.replace('models/', '');
+                    
+                    // 處理支援的生成方法標籤
+                    const methodsBadges = model.supportedGenerationMethods
+                        .map(m => `<span class="badge badge-method">${m}</span>`)
+                        .join('');
+
+                    return `
+                        <div class="model-card">
+                            <div>
+                                <div class="model-name">${cleanName}</div>
+                                <div class="model-desc">${model.description || '暫無描述。'}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color:#94a3b8; margin-bottom:6px; font-weight:600;">支援方法：</div>
+                                <div class="badge-container">
+                                    ${methodsBadges}
+                                    <span class="badge">輸入限制: ${model.inputTokenLimit || '未標明'}</span>
+                                    <span class="badge">輸出限制: ${model.outputTokenLimit || '未標明'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                statusText.innerText = `成功載入 ${data.models.length} 個最新 Gemini 官方可用模型！`;
+
+            } catch (error) {
+                console.error(error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <p style="color: #c53030;">載入失敗：${error.message}</p>
+                        <p style="font-size: 13px; margin-top: 5px; color: #718096;">請檢查您的 API Key 是否正確，或確認有無封鎖外部連線。</p>
+                    </div>
+                `;
+                statusText.innerText = '查詢失敗。';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🚀 查詢模型清單</span>';
+            }
+        }
+    </script>
+</body>
+</html>
