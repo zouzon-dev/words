@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Gemini API 測試 (LocalStorage 版)</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+        #output { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; white-space: pre-wrap; line-height: 1.6; min-height: 100px;}
+        button { padding: 8px 15px; margin-top: 10px; cursor: pointer; }
+        .danger-btn { background-color: #ff4d4d; color: white; border: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Gemini API 測試結果</h1>
+    <div id="output">準備中...</div>
+    
+    <button class="danger-btn" onclick="clearKey()">清除已儲存的金鑰</button>
+
+    <script>
+        // 1. 嘗試從 Local Storage 讀取名為 'GEMINI_KEY' 的資料
+        let API_KEY = localStorage.getItem('GEMINI_KEY');
+
+        // 2. 如果 Local Storage 裡面沒有金鑰，就跳出輸入框請使用者填寫
+        if (!API_KEY) {
+            API_KEY = prompt("請輸入您的 Gemini API 金鑰：\n(這只會儲存在您的瀏覽器中，非常安全)");
+            
+            // 如果使用者有輸入內容，就將它存入 Local Storage
+            if (API_KEY && API_KEY.trim() !== "") {
+                localStorage.setItem('GEMINI_KEY', API_KEY.trim());
+            } else {
+                document.getElementById('output').innerText = "❌ 必須提供 API 金鑰才能執行測試，請重新整理網頁。";
+                throw new Error("未提供 API 金鑰"); // 停止執行後續程式碼
+            }
+        }
+
+        // 3. 準備呼叫 API
+        document.getElementById('output').innerText = "AI 正在思考中，請稍候...";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${API_KEY}`;
+        
+        const data = {
+            contents: [{
+                parts: [{ text: "請用繁體中文自我介紹，並說一句早安。" }]
+            }]
+        };
+
+        // 4. 發送請求給 Google 伺服器
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                document.getElementById('output').innerText = "發生錯誤：\n" + JSON.stringify(result.error, null, 2);
+            } else {
+                const reply = result.candidates[0].content.parts[0].text;
+                document.getElementById('output').innerText = reply;
+            }
+        })
+        .catch(error => {
+            console.error('連線發生錯誤:', error);
+            document.getElementById('output').innerText = '呼叫失敗，請檢查網路連線。';
+        });
+
+        // 5. 清除金鑰的函式 (綁定在按鈕上)
+        function clearKey() {
+            localStorage.removeItem('GEMINI_KEY');
+            alert("已清除金鑰！請重新整理網頁來輸入新的金鑰。");
+            location.reload(); // 自動重新整理網頁
+        }
+    </script>
+</body>
+</html>

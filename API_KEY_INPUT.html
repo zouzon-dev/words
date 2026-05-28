@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Gemini API Key 設定</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 30px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #666;
+        }
+        .btn-group {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        .btn-save {
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-save:hover {
+            background-color: #0056b3;
+        }
+        .btn-clear {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-clear:hover {
+            background-color: #bd2130;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Gemini API Key 本機設定</h2>
+    <p style="font-size: 13px; color: #888;">此金鑰將安全地儲存於您的本機瀏覽器 (localStorage) 中，不會外傳。</p>
+    
+    <div class="form-group">
+        <label for="apiKey">請輸入 Gemini API Key：</label>
+        <input type="password" id="apiKey" placeholder="AIzaSy..." autocomplete="off">
+    </div>
+
+    <div id="statusMessage" class="status">檢查狀態中...</div>
+
+    <div class="btn-group">
+        <button class="btn-save" onclick="saveKey()">儲存至本機</button>
+        <button class="btn-clear" onclick="clearKey()">清除金鑰</button>
+    </div>
+</div>
+
+<script>
+    // 網頁載入時，檢查 localStorgae 是否已有資料
+    document.addEventListener("DOMContentLoaded", function() {
+        checkKeyStatus();
+    });
+
+    // 檢查並更新介面狀態
+    function checkKeyStatus() {
+        const storedKey = localStorage.getItem('GEMINI_KEY');
+        const statusDiv = document.getElementById('statusMessage');
+        const inputField = document.getElementById('apiKey');
+
+        if (storedKey) {
+            statusDiv.innerHTML = "🟢 狀態：<span style='color: green; font-weight: bold;'>已儲存金鑰</span> (長度: " + storedKey.length + " 字元)";
+            inputField.value = storedKey; // 將舊值填入，方便辨識
+        } else {
+            statusDiv.innerHTML = "🔴 狀態：<span style='color: red; font-weight: bold;'>尚未設定金鑰</span>";
+            inputField.value = "";
+        }
+    }
+
+    // 儲存金鑰
+    function saveKey() {
+        const keyValue = document.getElementById('apiKey').value.trim();
+        
+        if (!keyValue) {
+            alert("請先輸入有效的 API Key 再進行儲存！");
+            return;
+        }
+
+        // 存入 localStorage
+        localStorage.setItem('GEMINI_KEY', keyValue);
+        alert("金鑰已成功儲存至本機 localStorage！");
+        checkKeyStatus();
+    }
+
+    // 清除金鑰
+    function clearKey() {
+        if (confirm("確定要清除本機儲存的 Gemini API Key 嗎？")) {
+            localStorage.removeItem('GEMINI_KEY');
+            alert("金鑰已清除！");
+            checkKeyStatus();
+        }
+    }
+</script>
+
+</body>
+</html>
+
+
