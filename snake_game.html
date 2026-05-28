@@ -556,18 +556,21 @@
         // 檢查是否吃到食物
         if (newHead.x === gameState.currentFood.x && newHead.y === gameState.currentFood.y) {
             // 吃到食物 - 字元匹配
+            const currentWord = gameState.wordList[gameState.wordIndex];
+            const eatenChar = currentWord.en[gameState.charIndex];
+            
+            // 🔊 每吃掉一個字元就發音
+            speakCharacter(eatenChar);
+            
             gameState.charIndex++;
             gameState.score += 10;
 
-            const currentWord = gameState.wordList[gameState.wordIndex];
-            const currentChar = currentWord.en[gameState.charIndex];
-
             // 檢查是否完成整個單字
             if (gameState.charIndex >= currentWord.en.length) {
-                // 單字完成！
+                // 單字完成！播放完整單字發音
                 gameState.completedWords++;
                 gameState.score += 50; // 完成單字的額外分數
-                playWord(currentWord);
+                playWordComplete(currentWord);
 
                 // 移動到下一個單字
                 gameState.wordIndex++;
@@ -637,8 +640,22 @@
         `;
     }
 
-    function playWord(word) {
-        // 英文發音
+    // 發音單個字元
+    function speakCharacter(char) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(char);
+            utterance.lang = 'en-US';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    // 發音完整單字及中文
+    function playWordComplete(word) {
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
 
@@ -653,7 +670,7 @@
             window.speechSynthesis.speak(enUtterance);
             setTimeout(() => {
                 window.speechSynthesis.speak(chUtterance);
-            }, 1000);
+            }, 1200);
         }
     }
 
