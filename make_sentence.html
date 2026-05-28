@@ -469,7 +469,11 @@
         // ==================== 設定 ====================
         const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
-        const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+       
+// const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+
+// 修改後：使用 8B 輕量化模型
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent';
 
         // ==================== 全局狀態 ====================
         let supabaseClient = null;
