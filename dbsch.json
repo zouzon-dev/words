@@ -82,39 +82,58 @@ words
   {
     "column_name": "id",
     "data_type": "bigint",
+    "max_length": null,
     "is_nullable": "NO",
     "column_default": "nextval('words_id_seq'::regclass)"
   },
   {
     "column_name": "en",
     "data_type": "character varying",
+    "max_length": 255,
     "is_nullable": "NO",
     "column_default": null
   },
   {
     "column_name": "ch",
     "data_type": "character varying",
+    "max_length": 255,
     "is_nullable": "NO",
     "column_default": null
   },
   {
     "column_name": "hint",
     "data_type": "character varying",
+    "max_length": 255,
     "is_nullable": "YES",
     "column_default": null
   },
   {
     "column_name": "category_code",
     "data_type": "character varying",
+    "max_length": 50,
     "is_nullable": "YES",
     "column_default": "'default'::character varying"
   },
   {
     "column_name": "created_at",
     "data_type": "timestamp with time zone",
+    "max_length": null,
     "is_nullable": "YES",
     "column_default": "now()"
+  },
+  {
+    "column_name": "sentence_en",
+    "data_type": "character varying",
+    "max_length": null,
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "column_name": "sentence_ch",
+    "data_type": "character varying",
+    "max_length": null,
+    "is_nullable": "YES",
+    "column_default": null
   }
 ]
-
 
