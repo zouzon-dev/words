@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 新增使用者系統（防錯更新版）</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #f4f6f9; padding: 40px 20px; display: flex; justify-content: center; }
+        .container { max-width: 500px; width: 100%; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #4a5568; }
+        input[type="email"], input[type="password"] { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+        button { width: 100%; padding: 12px 24px; font-size: 16px; background-color: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button:hover { background-color: #2563eb; }
+        button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+        .status { margin-top: 20px; padding: 15px; border-radius: 4px; display: none; font-weight: bold; font-size: 14px; }
+        .success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .hint { font-size: 12px; color: #64748b; margin-top: 4px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container">
+    <h2>👤 新增學生/使用者帳號</h2>
+    
+    <div class="form-group">
+        <label for="user-email">學生電子信箱 (Email)</label>
+        <input type="email" id="user-email" placeholder="例如: student01@example.com">
+        <div class="hint">可以輸入真實信箱，也可以輸入虛擬信箱（僅作登入帳號使用）</div>
+    </div>
+
+    <div class="form-group">
+        <label for="user-password">設定初始密碼</label>
+        <input type="password" id="user-password" placeholder="密碼長度至少 6 位數">
+    </div>
+
+    <button id="submit-btn">確認建立帳號</button>
+    <div id="status-box" class="status"></div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    
+    let supabaseClient;
+    
+    try {
+        if (typeof window.supabase !== 'undefined') {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: { persistSession: false }
+            });
+        } else {
+            alert("錯誤：無法載入 Supabase SDK！");
+        }
+    } catch(e) {
+        alert("Supabase 初始化錯誤：\n" + e.message);
+    }
+
+    function showStatus(message, isError = false) {
+        const box = document.getElementById('status-box');
+        box.style.display = 'block';
+        box.className = `status ${isError ? 'error' : 'success'}`;
+        box.innerHTML = message;
+    }
+
+    document.getElementById('submit-btn').addEventListener('click', async function() {
+        const btn = this;
+        const email = document.getElementById('user-email').value.trim();
+        const password = document.getElementById('user-password').value.trim();
+
+        if (!email || !password) {
+            alert("請完整填寫 Email 與密碼！");
+            return;
+        }
+
+        if (password.length < 6) {
+            alert("密碼長度至少需要 6 位數！");
+            return;
+        }
+
+        btn.disabled = true;
+        showStatus("正在連線至 Supabase Auth 建立帳號...");
+
+        try {
+            // 呼叫註冊 API
+            const { data, error } = await supabaseClient.auth.signUp({
+                email: email,
+                password: password,
+            });
+
+            // 1. 如果 API 回傳錯誤
+            if (error) {
+                alert(`建立失敗：\n${error.message}`);
+                showStatus(`建立失敗：${error.message}`, true);
+                return;
+            }
+
+            // 2. 安全防禦：如果 data 或 data.user 為空，代表帳號可能已存在或被阻擋
+            if (!data || !data.user) {
+                alert("建立失敗：該 Email 可能已被註冊，或觸發了 Supabase 安全限制。");
+                showStatus("建立失敗：帳號已存在或無法建立", true);
+                return;
+            }
+
+            // 3. 特殊情況：如果 user 存在，但 identities 為空陣列，代表新版 Supabase 判定「此信箱已被註冊」
+            if (data.user.identities && data.user.identities.length === 0) {
+                alert("建立失敗：這個 Email 帳號以前就已經被註冊過了！");
+                showStatus("⚠️ 錯誤：該帳號已被註冊過！", true);
+                return;
+            }
+
+            // 4. 成功創立
+            showStatus(`🎉 帳號建立成功！<br>帳號：${email}<br>UID: ${data.user.id}`);
+            
+            // 清空輸入框
+            document.getElementById('user-email').value = "";
+            document.getElementById('user-password').value = "";
+
+        } catch (err) {
+            alert(`執行錯誤：\n${err.message}`);
+            showStatus(`錯誤：${err.message}`, true);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>

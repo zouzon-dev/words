@@ -1,0 +1,64 @@
+{
+  "vocabulary_annotations": [
+    {
+      "id": 11,
+      "word": "老天爺也者",
+      "pinyin_bopomofo": "",
+      "explanation": "指關於老天爺的這些話。"
+    },
+    {
+      "id": 12,
+      "word": "掙",
+      "pinyin_bopomofo": "ㄓㄥˋ",
+      "explanation": "以努力獲取。"
+    },
+    {
+      "id": 13,
+      "word": "渺茫",
+      "pinyin_bopomofo": "ㄇㄧㄠˇ ㄇㄤˊ",
+      "explanation": "遙遠而模糊不清。渺，音ㄇㄧㄠˇ。"
+    },
+    {
+      "id": 14,
+      "word": "瀏覽",
+      "pinyin_bopomofo": "ㄌㄧㄡˊ ㄌㄢˇ",
+      "explanation": "大略地看。瀏覽，音ㄌㄧㄡˊ ㄌㄢˇ。"
+    },
+    {
+      "id": 15,
+      "word": "亘古",
+      "pinyin_bopomofo": "ㄍㄣˋ ㄍㄨˇ",
+      "explanation": "自古至今。亘，音ㄍㄣˋ，延續不斷。"
+    },
+    {
+      "id": 16,
+      "word": "嶄新",
+      "pinyin_bopomofo": "ㄓㄢˇ ㄒㄧㄣ",
+      "explanation": "極新。嶄，音ㄓㄢˇ。"
+    },
+    {
+      "id": 17,
+      "word": "天外飛來一筆",
+      "pinyin_bopomofo": "",
+      "explanation": "與上下文沒什麼關係，突然插進一句話來。"
+    },
+    {
+      "id": 18,
+      "word": "謙抑",
+      "pinyin_bopomofo": "ㄑㄧㄢ ㄧˋ",
+      "explanation": "謙卑退讓。"
+    },
+    {
+      "id": 19,
+      "word": "對於",
+      "pinyin_bopomofo": "",
+      "explanation": "關於。"
+    },
+    {
+      "id": 20,
+      "word": "遺愛",
+      "pinyin_bopomofo": "",
+      "explanation": "前人遺留給後世的德惠。"
+    }
+  ]
+}

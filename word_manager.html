@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 單字維護管理系統</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #f4f6f9; padding: 40px 20px; display: flex; justify-content: center; }
+        .container { max-width: 900px; width: 100%; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
+        
+        .section-box { background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 25px; }
+        .section-title { font-weight: bold; margin-top: 0; margin-bottom: 15px; color: #334155; font-size: 16px; }
+        
+        .flex-group { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
+        label { font-weight: bold; color: #4a5568; font-size: 14px; }
+        
+        select, input[type="text"] { padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 14px; outline: none; width: 100%; }
+        select:focus, input[type="text"]:focus { border-color: #3498db; }
+        
+        button { padding: 10px 18px; font-size: 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        .btn-primary { background-color: #3498db; color: white; }
+        .btn-primary:hover { background-color: #2980b9; }
+        .btn-success { background-color: #10b981; color: white; padding: 11px 20px; }
+        .btn-success:hover { background-color: #059669; }
+        .btn-edit { background-color: #f59e0b; color: white; }
+        .btn-edit:hover { background-color: #d97706; }
+        .btn-delete { background-color: #ef4444; color: white; }
+        .btn-delete:hover { background-color: #dc2626; }
+        .btn-cancel { background-color: #64748b; color: white; }
+        .btn-cancel:hover { background-color: #475569; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        th { background-color: #f1f5f9; color: #475569; font-weight: bold; }
+        tr:hover { background-color: #f8fafc; }
+        
+        .status { padding: 12px; border-radius: 4px; display: none; font-weight: bold; font-size: 14px; margin-bottom: 15px; }
+        .success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        
+        .inline-input { padding: 6px 10px; font-size: 14px; border: 1px solid #3498db; border-radius: 4px; width: 90%; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container">
+    <h2>🛠️ Supabase 單字維護管理系統</h2>
+    
+    <div id="status-box" class="status"></div>
+
+    <div class="section-box" style="background: #eff6ff; border-color: #bfdbfe;">
+        <div class="form-group" style="max-width: 400px;">
+            <label for="category-select">📁 請選擇要管理的單字庫分類：</label>
+            <select id="category-select">
+                <option value="">正在載入分類清單...</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="section-title">➕ 在目前分類下「新增單字」</div>
+        <div class="flex-group">
+            <div class="form-group">
+                <label for="new-en">英文單字 (en)</label>
+                <input type="text" id="new-en" placeholder="例如: apply">
+            </div>
+            <div class="form-group">
+                <label for="new-ch">中文翻譯 (ch)</label>
+                <input type="text" id="new-ch" placeholder="例如: 申請；應用">
+            </div>
+            <div class="form-group">
+                <label for="new-hint">字首/字尾提示 (hint) - 選填</label>
+                <input type="text" id="new-hint" placeholder="例如: a______y">
+            </div>
+            <button id="add-word-btn" class="btn-success">新增單字</button>
+        </div>
+    </div>
+
+    <div class="section-box" style="background: white;">
+        <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>📋 單字清單</span>
+            <span id="word-count" style="font-size: 14px; color: #64748b; font-weight: normal;">共 0 筆單字</span>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%;">英文 (en)</th>
+                    <th style="width: 30%;">中文 (ch)</th>
+                    <th style="width: 25%;">提示 (hint)</th>
+                    <th style="width: 20%; text-align: center;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="word-table-body">
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #94a3b8;">請先選擇上方單字分區</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    
+    let supabaseClient;
+    let currentEditingId = null; // 儲存當前正在編輯的單字 ID
+
+    window.onload = async function() {
+        if (typeof window.supabase !== 'undefined') {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: { persistSession: false }
+            });
+            
+            // 綁定事件
+            document.getElementById('category-select').addEventListener('change', fetchWords);
+            document.getElementById('add-word-btn').addEventListener('click', handleAddWord);
+            
+            // 初始化：載入分類
+            await loadCategories();
+        } else {
+            alert("錯誤：無法載入 Supabase SDK。");
+        }
+    };
+
+    // 載入雲端全部分類
+    async function loadCategories() {
+        const selectEl = document.getElementById('category-select');
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('code, name')
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            showStatus(`載入分類失敗：${error.message}`, true);
+            return;
+        }
+
+        selectEl.innerHTML = '';
+        if (data && data.length > 0) {
+            data.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.code;
+                opt.innerText = `${cat.name} (${cat.code})`;
+                selectEl.appendChild(opt);
+            });
+            // 預設直接加載第一個分類的單字
+            fetchWords();
+        } else {
+            selectEl.innerHTML = '<option value="">⚠️ 請先至分類管理網頁建立分類</option>';
+        }
+    }
+
+    // 撈取指定分類下的所有單字
+    async function fetchWords() {
+        const categoryCode = document.getElementById('category-select').value;
+        const tbody = document.getElementById('word-table-body');
+        const countSpan = document.getElementById('word-count');
+        currentEditingId = null; // 切換分類時重置編輯狀態
+
+        if (!categoryCode) return;
+
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8;">單字載入中...</td></tr>`;
+
+        const { data, error } = await supabaseClient
+            .from('words')
+            .select('id, en, ch, hint')
+            .eq('category_code', categoryCode)
+            .order('en', { ascending: true });
+
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ef4444;">載入單字失敗：${error.message}</td></tr>`;
+            return;
+        }
+
+        countSpan.innerText = `共 ${data.length} 筆單字`;
+
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8;">此分類目前空空如也 🫙</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.forEach(word => {
+            const tr = document.createElement('tr');
+            tr.id = `row-${word.id}`;
+            
+            tr.innerHTML = `
+                <td class="cell-en">${word.en}</td>
+                <td class="cell-ch">${word.ch}</td>
+                <td class="cell-hint">${word.hint || '<span style="color:#cbd5e1;">無</span>'}</td>
+                <td style="text-align: center; display: flex; gap: 8px; justify-content: center;">
+                    <button class="btn-edit" onclick="startEdit(${word.id})">編輯</button>
+                    <button class="btn-delete" onclick="handleDeleteWord(${word.id}, '${word.en}')">刪除</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 處理新增單字邏輯
+    async function handleAddWord() {
+        const categoryCode = document.getElementById('category-select').value;
+        const enInput = document.getElementById('new-en');
+        const chInput = document.getElementById('new-ch');
+        const hintInput = document.getElementById('new-hint');
+
+        const en = enInput.value.trim();
+        const ch = chInput.value.trim();
+        const hint = hintInput.value.trim() || null;
+
+        if (!categoryCode) { alert("請先選擇分類！"); return; }
+        if (!en || !ch) { alert("英文與中文欄位為必填！"); return; }
+
+        showStatus("正在新增單字...", false);
+
+        const { error } = await supabaseClient
+            .from('words')
+            .insert([{ en, ch, hint, category_code: categoryCode }]);
+
+        if (error) {
+            if (error.code === '23505') {
+                showStatus(`新增失敗：單字「${en}」在系統中已存在（不可重複）`, true);
+            } else {
+                showStatus(`新增失敗：${error.message}`, true);
+            }
+        } else {
+            showStatus(`🎉 成功新增單字：${en}`);
+            enInput.value = '';
+            chInput.value = '';
+            hintInput.value = '';
+            fetchWords(); // 刷新清單
+        }
+    }
+
+    // 進入「列內編輯」模式
+    window.startEdit = function(id) {
+        if (currentEditingId !== null) {
+            alert("請先完成或取消當前的單字編輯！");
+            return;
+        }
+        currentEditingId = id;
+        const row = document.getElementById(`row-${id}`);
+        
+        // 抓取原本的文字
+        const oldEn = row.querySelector('.cell-en').innerText;
+        const oldCh = row.querySelector('.cell-ch').innerText;
+        let oldHint = row.querySelector('.cell-hint').innerText;
+        if (oldHint === '無') oldHint = '';
+
+        // 轉換為輸入框
+        row.querySelector('.cell-en').innerHTML = `<input type="text" class="inline-input" id="edit-en-${id}" value="${oldEn}">`;
+        row.querySelector('.cell-ch').innerHTML = `<input type="text" class="inline-input" id="edit-ch-${id}" value="${oldCh}">`;
+        row.querySelector('.cell-hint').innerHTML = `<input type="text" class="inline-input" id="edit-hint-${id}" value="${oldHint}">`;
+        
+        // 更換按鈕為 儲存/取消
+        row.cells[3].innerHTML = `
+            <button class="btn-primary" onclick="saveEdit(${id})">儲存</button>
+            <button class="btn-cancel" onclick="fetchWords()">取消</button>
+        `;
+    };
+
+    // 儲存修改內容至雲端
+    window.saveEdit = async function(id) {
+        const en = document.getElementById(`edit-en-${id}`).value.trim();
+        const ch = document.getElementById(`edit-ch-${id}`).value.trim();
+        const hint = document.getElementById(`edit-hint-${id}`).value.trim() || null;
+
+        if (!en || !ch) { alert("英文與中文不能改為空白！"); return; }
+
+        showStatus("正在更新單字資料...", false);
+
+        const { error } = await supabaseClient
+            .from('words')
+            .update({ en, ch, hint })
+            .eq('id', id);
+
+        if (error) {
+            showStatus(`修改失敗：${error.message}`, true);
+        } else {
+            showStatus("🎉 單字資料更新成功！");
+            fetchWords(); // 刷新並離開編輯狀態
+        }
+    };
+
+    // 處理刪除單字
+    window.handleDeleteWord = async function(id, enText) {
+        const confirmCheck = confirm(`⚠️ 確定要從資料庫中永久刪除單字「${enText}」嗎？\n該使用者的錯題與星號紀錄也會一併被移除。`);
+        if (!confirmCheck) return;
+
+        showStatus(`正在刪除單字 ${enText}...`, false);
+
+        const { error } = await supabaseClient
+            .from('words')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            showStatus(`刪除失敗：${error.message}`, true);
+        } else {
+            showStatus(`🎉 已成功刪除單字：${enText}`);
+            fetchWords(); // 刷新清單
+        }
+    };
+
+    // 狀態提示工具
+    function showStatus(message, isError = false) {
+        const box = document.getElementById('status-box');
+        box.style.display = 'block';
+        box.className = `status ${isError ? 'error' : 'success'}`;
+        box.innerHTML = message;
+    }
+</script>
+
+</body>
+</html>

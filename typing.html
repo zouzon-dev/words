@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英文單字打字練習器 (雲端發音版)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        /* 初始隱藏主視窗，確認登入後才顯示 */
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            display: none; 
+        }
+        
+        .user-info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #e2e8f0;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .btn-logout { background-color: #ef4444; padding: 4px 10px; font-size: 12px; color: white; border: none; border-radius: 4px; cursor: pointer;}
+        .btn-logout:hover { background-color: #dc2626; }
+
+        select, input, button {
+            font-size: 16px;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            width: 100%;
+            box-sizing: border-box;
+            outline: none;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #45a049; }
+        button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+
+        .word-display {
+            font-size: 36px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 15px 0 5px 0;
+        }
+        .ch-display {
+            font-size: 22px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        .hint-display {
+            font-size: 16px;
+            color: #bdc3c7;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .audio-btn {
+            background-color: #008CBA;
+            margin: 0;
+        }
+        .audio-btn:hover { background-color: #007B9A; }
+        
+        .progress-text {
+            font-size: 14px;
+            color: #95a5a6;
+            margin-bottom: 10px;
+        }
+        .result {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 15px;
+            min-height: 27px;
+        }
+        .success { color: #27ae60; }
+        .error { color: #c0392b; }
+        
+        .summary-title {
+            font-size: 28px;
+            color: #27ae60;
+            margin-bottom: 15px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container" id="app-container">
+    <h2>⌨️ 英文單字打字練習 (雲端連線版)</h2>
+    
+    <div id="user-bar" class="user-info-bar">
+        <span>👤 學生：<span id="user-email-display">載入中...</span></span>
+        <button id="logout-btn" class="btn-logout">登出</button>
+    </div>
+    
+    <label for="db-select" style="text-align: left; display: block; font-weight: bold; font-size: 14px; color: #555;">選擇單字分類 (Category)：</label>
+    <select id="db-select">
+        <option value="">正在從雲端同步分類...</option>
+    </select>
+    
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+    <div id="exercise-section">
+        <div class="progress-text" id="progress-bar">進度: 0 / 0</div>
+
+        <div class="word-display" id="en-word">Loading...</div>
+        <div class="ch-display" id="ch-word">載入中...</div>
+        <div class="hint-display" id="hint-word">提示</div>
+        
+        <div class="btn-group">
+            <button class="audio-btn" id="speak-en-btn" disabled>🔊 英文發音 (Enter)</button>
+            <button class="audio-btn" id="speak-ch-btn" style="background-color: #9b59b6;" disabled>🔊 中文發音</button>
+        </div>
+        
+        <input type="text" id="type-input" placeholder="請照著上面的英文輸入..." autocomplete="off" disabled>
+        
+        <div class="result" id="result-msg"></div>
+    </div>
+</div>
+
+<script>
+    // Supabase 設定（與 word_test.html 一致）
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    
+    let supabaseClient = null;
+    let currentUser = null;
+    let wordList = [];
+    let currentIndex = 0;
+    let isLocking = false; // 防止切換題目的空檔重複輸入
+
+    const appContainer = document.getElementById('app-container');
+    const dbSelect = document.getElementById('db-select');
+    const progressBar = document.getElementById('progress-bar');
+    const enWord = document.getElementById('en-word');
+    const chWord = document.getElementById('ch-word');
+    const hintWord = document.getElementById('hint-word');
+    const typeInput = document.getElementById('type-input');
+    const speakEnBtn = document.getElementById('speak-en-btn');
+    const speakChBtn = document.getElementById('speak-ch-btn');
+    const resultMsg = document.getElementById('result-msg');
+
+    window.onload = async function() {
+        if (typeof window.supabase === 'undefined') {
+            alert("⚠️ 系統載入失敗！您的瀏覽器攔截了資料庫連線。");
+            return;
+        }
+
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // 檢查使用者登入狀態
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && session.user) {
+            currentUser = session.user;
+            document.getElementById('user-email-display').innerText = currentUser.email;
+            appContainer.style.display = 'block';
+            
+            bindEvents();
+            // 優先加載雲端分類
+            await loadCategoriesFromSupabase();
+        } else {
+            // 未登入強制踢回登入頁面
+            window.location.href = 'login.html';
+        }
+    };
+
+    function bindEvents() {
+        document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        dbSelect.addEventListener('change', loadWordsFromSupabase);
+        
+        speakEnBtn.addEventListener('click', () => {
+            window.speechSynthesis.cancel();
+            if(wordList[currentIndex]) speak(wordList[currentIndex].en, 'en-US');
+            typeInput.focus();
+        });
+
+        speakChBtn.addEventListener('click', () => {
+            window.speechSynthesis.cancel();
+            if(wordList[currentIndex]) speak(wordList[currentIndex].ch, 'zh-TW');
+            typeInput.focus();
+        });
+
+        // 檢查打字輸入
+        typeInput.addEventListener('input', handleTypingInput);
+
+        // 快捷鍵：按 Enter 鍵重複發英文音
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && currentIndex < wordList.length && !isLocking) {
+                window.speechSynthesis.cancel();
+                speak(wordList[currentIndex].en, 'en-US');
+            }
+        });
+    }
+
+    async function handleLogout() {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'login.html'; 
+    }
+
+    // 從資料庫撈取動態分類
+    async function loadCategoriesFromSupabase() {
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('code, name')
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            alert(`載入單字庫分類失敗：${error.message}`);
+            return;
+        }
+
+        dbSelect.innerHTML = '';
+        if (data && data.length > 0) {
+            data.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.code;
+                opt.innerText = `${cat.name} (${cat.code})`;
+                dbSelect.appendChild(opt);
+            });
+            // 自動加載第一個分類的單字
+            loadWordsFromSupabase();
+        } else {
+            dbSelect.innerHTML = '<option value="">⚠️ 雲端目前未設定任何分類</option>';
+            enWord.textContent = "請先至後台新增分類";
+            chWord.textContent = "";
+            hintWord.textContent = "";
+        }
+    }
+
+    // 從資料庫撈取單字並打亂排序
+    async function loadWordsFromSupabase() {
+        if (!supabaseClient || !currentUser) return;
+        const targetCategory = dbSelect.value;
+        if (!targetCategory) return;
+
+        enWord.textContent = "下載中...";
+        chWord.textContent = "從雲端同步單字...";
+        hintWord.textContent = "";
+        typeInput.disabled = true;
+        speakEnBtn.disabled = true;
+        speakChBtn.disabled = true;
+
+        const { data: wordsData, error: wordsError } = await supabaseClient
+            .from('words')
+            .select('*')
+            .eq('category_code', targetCategory);
+
+        if (wordsError) {
+            enWord.textContent = "錯誤";
+            chWord.textContent = `載入失敗: ${wordsError.message}`;
+            return;
+        }
+
+        wordList = wordsData || [];
+
+        if (wordList.length > 0) {
+            // 隨機排序單字
+            wordList.sort(() => Math.random() - 0.5);
+            currentIndex = 0;
+            isLocking = false;
+            
+            typeInput.disabled = false;
+            speakEnBtn.disabled = false;
+            speakChBtn.disabled = false;
+            showWord();
+        } else {
+            enWord.textContent = "空字庫";
+            chWord.textContent = "此分類目前沒有單字。";
+            hintWord.textContent = "";
+            progressBar.textContent = "進度: 0 / 0";
+        }
+    }
+
+    // 顯示題目
+    function showWord() {
+        if (currentIndex >= wordList.length) {
+            endSession();
+            return;
+        }
+
+        const currentData = wordList[currentIndex];
+        
+        progressBar.textContent = `進度: ${currentIndex + 1} / ${wordList.length}`;
+        enWord.textContent = currentData.en;     
+        chWord.textContent = currentData.ch;     
+        
+        // 判斷雲端資料是否有 hint
+        if (currentData.hint) {
+            hintWord.textContent = `( 提示: ${currentData.hint} )`; 
+        } else {
+            hintWord.textContent = `( 長度: ${currentData.en.length} 個字元 )`;
+        }
+        
+        typeInput.value = '';                    
+        resultMsg.textContent = '';              
+        typeInput.focus();
+        
+        // 自動朗讀
+        speak(currentData.en, 'en-US', () => {
+            speak(currentData.ch, 'zh-TW');
+        });
+    }
+
+    function handleTypingInput(e) {
+        if (isLocking || currentIndex >= wordList.length) return;
+
+        const userTyped = e.target.value.trim();
+        const correctWord = wordList[currentIndex].en.trim();
+
+        if (userTyped === correctWord) {
+            isLocking = true;
+            resultMsg.textContent = "🎯 太棒了，完全正確！";
+            resultMsg.className = "result success";
+            typeInput.disabled = true; 
+            
+            setTimeout(() => {
+                currentIndex++;
+                isLocking = false;
+                typeInput.disabled = false;
+                showWord();
+            }, 1200);
+            
+        } else if (correctWord.toLowerCase().startsWith(userTyped.toLowerCase())) {
+            // 支援大小寫模糊輸入檢查提示，但最終必須完全一致
+            resultMsg.textContent = "輸入中...";
+            resultMsg.className = "result";
+        } else {
+            resultMsg.textContent = "❌ 哎呀，拼錯囉！";
+            resultMsg.className = "result error";
+        }
+    }
+
+    // 瀏覽器發音
+    function speak(text, lang, onEndCallback = null) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang;        
+            utterance.rate = 0.9;         
+            if (onEndCallback) {
+                utterance.onend = onEndCallback;
+            }
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    // 結束畫面渲染
+    function endSession() {
+        window.speechSynthesis.cancel();
+        speak("恭喜你，完成所有單字練習！", "zh-TW");
+
+        const exerciseSection = document.getElementById('exercise-section');
+        exerciseSection.innerHTML = `
+            <div class="summary-title">🎉 練習結束！</div>
+            <p style="font-size: 18px; color: #555;">你已經成功挑戰了這個字庫的所有單字！</p>
+            <div style="font-size: 48px; margin: 20px 0;">🏆</div>
+            <button onclick="location.reload()" style="background-color: #3498db; margin-top: 20px;">再練習一次</button>
+        `;
+    }
+</script>
+
+</body>
+</html>

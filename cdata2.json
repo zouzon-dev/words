@@ -1,0 +1,64 @@
+{
+  "vocabulary_annotations": [
+    {
+      "id": 1,
+      "word": "布",
+      "pinyin_bopomofo": "",
+      "explanation": "擺設。"
+    },
+    {
+      "id": 2,
+      "word": "尷尬",
+      "pinyin_bopomofo": "ㄍㄢ ㄍㄚˋ",
+      "explanation": "難為情。"
+    },
+    {
+      "id": 3,
+      "word": "謝飯",
+      "pinyin_bopomofo": "",
+      "explanation": "指飯前前的感恩禱告。"
+    },
+    {
+      "id": 4,
+      "word": "搖曳",
+      "pinyin_bopomofo": "ㄧㄠˊ ㄧˋ",
+      "explanation": "搖晃。曳，音ㄧˋ，飄搖。"
+    },
+    {
+      "id": 5,
+      "word": "滔天",
+      "pinyin_bopomofo": "ㄊㄠ ㄊㄧㄢ",
+      "explanation": "滿天，形容極大。滔，音ㄊㄠ。"
+    },
+    {
+      "id": 6,
+      "word": "糟蹋",
+      "pinyin_bopomofo": "ㄗㄠ ㄊㄚˋ",
+      "explanation": "浪費、不知愛惜。"
+    },
+    {
+      "id": 7,
+      "word": "咱們",
+      "pinyin_bopomofo": "ㄗㄢˊ ㄇㄣ˙",
+      "explanation": "我們。"
+    },
+    {
+      "id": 8,
+      "word": "偶像",
+      "pinyin_bopomofo": "",
+      "explanation": "比指神像、佛像。"
+    },
+    {
+      "id": 9,
+      "word": "關帝廟",
+      "pinyin_bopomofo": "",
+      "explanation": "奉祀關羽的廟。三國時侯蜀將關羽忠直義勇，後人敬仰他的人格，立廟祭祀，尊為關聖帝君，並且同時祭拜他的兒子關平武將周倉。"
+    },
+    {
+      "id": 10,
+      "word": "供桌",
+      "pinyin_bopomofo": "ㄍㄨㄥ ㄓㄨㄛ",
+      "explanation": "擺設祭品的桌子。供，音ㄍㄨㄥ。"
+    }
+  ]
+}

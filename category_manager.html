@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 單字分類管理系統</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #f4f6f9; padding: 40px 20px; display: flex; justify-content: center; }
+        .container { max-width: 600px; width: 100%; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+        label { font-weight: bold; color: #4a5568; font-size: 14px; }
+        input[type="text"] { padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 14px; outline: none; }
+        input[type="text"]:focus { border-color: #3498db; }
+        
+        .btn-add { padding: 12px; font-size: 16px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; transition: background 0.2s; margin-top: 10px; }
+        .btn-add:hover { background-color: #2980b9; }
+        
+        .list-section { margin-top: 30px; }
+        .list-title { font-weight: bold; margin-bottom: 10px; color: #1a1a1a; border-bottom: 1px solid #eaeaea; padding-bottom: 5px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        th { background-color: #f8fafc; color: #64748b; font-weight: bold; }
+        
+        .btn-delete { background-color: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-delete:hover { background-color: #dc2626; }
+        .btn-delete:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+
+        .status { margin-top: 20px; padding: 12px; border-radius: 4px; display: none; font-weight: bold; font-size: 14px; }
+        .success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container">
+    <h2>📁 Supabase 單字分類管理系統</h2>
+    
+    <div style="background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 20px;">
+        <h3 style="margin-top: 0; font-size: 16px; color: #334155;">➕ 新增分類</h3>
+        <div class="form-group">
+            <label for="cat-code">分類代碼 (code) <span style="color:#ef4444; font-size:12px;">*必填，限英文小寫、數字，不能重複</span></label>
+            <input type="text" id="cat-code" placeholder="例如: toeic, basic_1000">
+        </div>
+        <div class="form-group">
+            <label for="cat-name">顯示名稱 (name) <span style="color:#ef4444; font-size:12px;">*必填，前台下拉選單看到的中文</span></label>
+            <input type="text" id="cat-name" placeholder="例如: 多益核心單字, 基礎千字表">
+        </div>
+        <button id="add-btn" class="btn-add">儲存並建立分類</button>
+    </div>
+
+    <div id="status-box" class="status"></div>
+
+    <div class="list-section">
+        <div class="list-title">📋 目前雲端現有分類</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>代碼 (code)</th>
+                    <th>顯示名稱 (name)</th>
+                    <th style="width: 70px; text-align: center;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="category-table-body">
+                <tr>
+                    <td colspan="3" style="text-align: center; color: #94a3b8;">分類清單載入中...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    
+    let supabaseClient;
+    
+    window.onload = function() {
+        if (typeof window.supabase !== 'undefined') {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: { persistSession: false }
+            });
+            
+            // 綁定儲存按鈕事件
+            document.getElementById('add-btn').addEventListener('click', handleAddCategory);
+            
+            // 載入清單
+            fetchCategories();
+        } else {
+            alert("錯誤：無法載入 Supabase SDK。");
+        }
+    };
+
+    // 1. 撈取雲端所有分類並渲染表格
+    async function fetchCategories() {
+        const tbody = document.getElementById('category-table-body');
+        
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('id, code, name')
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #ef4444;">載入失敗：${error.message}</td></tr>`;
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">目前沒有任何分類</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.forEach(cat => {
+            const tr = document.createElement('tr');
+            
+            // 系統預設的 default 不能被刪除，做防呆
+            const isDefault = cat.code === 'default';
+            const deleteBtnHtml = isDefault 
+                ? `<button class="btn-delete" disabled style="background:#cbd5e1;">系統</button>`
+                : `<button class="btn-delete" data-id="${cat.id}" data-code="${cat.code}">刪除</button>`;
+
+            tr.innerHTML = `
+                <td><strong>${cat.code}</strong></td>
+                <td>${cat.name}</td>
+                <td style="text-align: center;">${deleteBtnHtml}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // 幫所有刪除按鈕綁定事件
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', handleDeleteCategory);
+        });
+    }
+
+    // 2. 處理新增分類
+    async function handleAddCategory() {
+        const codeInput = document.getElementById('cat-code');
+        const nameInput = document.getElementById('cat-name');
+        
+        const code = codeInput.value.trim().toLowerCase(); // 自動轉小寫防呆
+        const name = nameInput.value.trim();
+
+        if (!code || !name) {
+            alert("欄位請勿留白！");
+            return;
+        }
+
+        // 檢查 code 格式（只允許英文、數字、底線）
+        const codeRegex = /^[a-z0-9_]+$/;
+        if (!codeRegex.test(code)) {
+            alert("分類代碼只能包含英文小寫、數字與底線（例如: toeic_2026）");
+            return;
+        }
+
+        showStatus("正在寫入雲端...", false);
+
+        const { error } = await supabaseClient
+            .from('categories')
+            .insert([{ code, name }]);
+
+        if (error) {
+            if (error.code === '23505') { // PostgreSQL 唯一值衝突代碼
+                showStatus(`建立失敗：代碼「${code}」已經存在了！`, true);
+            } else {
+                showStatus(`建立失敗：${error.message}`, true);
+            }
+        } else {
+            showStatus(`🎉 成功建立分類：${name} (${code})`);
+            codeInput.value = '';
+            nameInput.value = '';
+            fetchCategories(); // 刷新列表
+        }
+    }
+
+    // 3. 處理刪除分類
+    async function handleDeleteCategory() {
+        const id = this.getAttribute('data-id');
+        const code = this.getAttribute('data-code');
+
+        if (!id || !code) return;
+
+        const confirmCheck = confirm(`⚠️ 確定要刪除「${code}」這個分類嗎？\n\n注意：如果 words 表格內有單字屬於此分類，那些單字的分類將會自動被重設為 'default'。`);
+        if (!confirmCheck) return;
+
+        showStatus(`正在刪除分類 ${code}...`, false);
+
+        const { error } = await supabaseClient
+            .from('categories')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            showStatus(`刪除失敗：${error.message}`, true);
+        } else {
+            showStatus(`🎉 已成功刪除分類：${code}`);
+            fetchCategories(); // 刷新列表
+        }
+    }
+
+    // 狀態提示小工具
+    function showStatus(message, isError = false) {
+        const box = document.getElementById('status-box');
+        box.style.display = 'block';
+        box.className = `status ${isError ? 'error' : 'success'}`;
+        box.innerHTML = message;
+    }
+</script>
+
+</body>
+</html>

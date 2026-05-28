@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 單字批量上傳系統</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #f4f6f9; padding: 40px 20px; display: flex; justify-content: center; }
+        .container { max-width: 700px; width: 100%; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #4a5568; }
+        select, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+        textarea { height: 180px; font-family: monospace; resize: vertical; }
+        button { padding: 12px 24px; font-size: 16px; background-color: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button:hover { background-color: #059669; }
+        button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+        .status { margin-top: 20px; padding: 15px; border-radius: 4px; display: none; font-weight: bold; }
+        .success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container">
+    <h2>🚀 Supabase 單字批量上傳系統</h2>
+    
+    <div class="form-group">
+        <label for="category-select">1. 選擇要匯入的單字庫分區 (category_code)</label>
+        <select id="category-select">
+            <option value="">正在從雲端載入分類清單...</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="text-input">直接貼上文字內容</label>
+        <textarea id="text-input" placeholder='格式例如：&#10;"yesterday","歷史","y_______y"&#10;"tomorrow","明天"'></textarea>
+    </div>
+
+    <button id="upload-btn" disabled>等候雲端分類載入中...</button>
+    <div id="status-box" class="status"></div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    
+    let supabaseClient;
+    
+    window.onload = async function() {
+        try {
+            if (typeof window.supabase !== 'undefined') {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                    auth: { persistSession: false }
+                });
+                
+                // 動態從資料庫載入分類
+                await loadCategoriesFromSupabase();
+            } else {
+                alert("錯誤：無法載入 Supabase SDK，請檢查網路連線。");
+            }
+        } catch(e) {
+            alert("Supabase 初始化發生錯誤：\n" + e.message);
+        }
+    };
+
+    // 🌟 核心新增：從資料庫撈取獨立 categories 表格資料並渲染選單
+    async function loadCategoriesFromSupabase() {
+        const selectEl = document.getElementById('category-select');
+        const btn = document.getElementById('upload-btn');
+        
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('code, name')
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            showStatus(`無法取得單字庫分類，請確認 RLS 權限或表格是否存在。錯誤：${error.message}`, true);
+            selectEl.innerHTML = '<option value="">❌ 載入分類失敗</option>';
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            selectEl.innerHTML = '<option value="">⚠️ 雲端資料庫目前沒有任何分類</option>';
+            return;
+        }
+
+        // 清空選單並填入動態資料
+        selectEl.innerHTML = '';
+        data.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.code;
+            opt.innerText = `${cat.name} (${cat.code})`;
+            selectEl.appendChild(opt);
+        });
+
+        // 啟用上傳按鈕
+        btn.disabled = false;
+        btn.innerText = "開始上傳至 Supabase";
+    }
+
+    function showStatus(message, isError = false) {
+        const box = document.getElementById('status-box');
+        box.style.display = 'block';
+        box.className = `status ${isError ? 'error' : 'success'}`;
+        box.innerHTML = message;
+    }
+
+    document.getElementById('upload-btn').addEventListener('click', async function() {
+        const btn = this;
+        const textInput = document.getElementById('text-input').value.trim();
+        const categoryCode = document.getElementById('category-select').value;
+
+        if (!categoryCode) {
+            alert("請選擇有效的單字庫分區！");
+            return;
+        }
+
+        if (!textInput) {
+            alert("請先輸入單字內容！");
+            return;
+        }
+
+        btn.disabled = true;
+        showStatus("正在解析資料...");
+
+        try {
+            const lines = textInput.split(/\r?\n/);
+            const payload = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                // 拆解逗號並去除引號
+                const row = line.split(',').map(item => item.trim().replace(/^"|"$/g, '').trim());
+
+                if (row.length < 2) continue;
+
+                payload.push({
+                    en: row[0],
+                    ch: row[1],
+                    hint: row[2] || null,
+                    category_code: categoryCode  // 🌟 修正：對接新結構的欄位名稱
+                });
+            }
+
+            if (payload.length === 0) {
+                throw new Error("沒有解析出任何合法的資料，請確認格式是否包含逗號。");
+            }
+
+            showStatus(`解析成功 ${payload.length} 筆，正在寫入 Supabase...`);
+
+            // 執行 Upsert 批次寫入資料庫
+            const { error } = await supabaseClient
+                .from('words')
+                .upsert(payload, { onConflict: 'en' });
+
+            if (error) {
+                alert(`Supabase 資料庫回傳錯誤：\n代碼: ${error.code}\n訊息: ${error.message}`);
+                showStatus(`上傳失敗：${error.message}`, true);
+            } else {
+                showStatus(`🎉 成功！已成功匯入/更新 ${payload.length} 筆單字到【${categoryCode}】分區。`);
+                document.getElementById('text-input').value = "";
+            }
+
+        } catch (err) {
+            alert(`執行過程發生錯誤：\n${err.message}`);
+            showStatus(`錯誤：${err.message}`, true);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>

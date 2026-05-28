@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>單字侵略者 Word Invaders (雲端同步版)</title>
+    <style>
+        body {
+            background-color: #111;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        h1 {
+            margin: 5px 0 10px 0;
+            font-size: 24px;
+            color: #00ffcc;
+            text-shadow: 0 0 10px #00ffcc;
+        }
+        /* 初始隱藏主視窗，確認登入後才顯示 */
+        #game-app {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        /* 適合遊戲暗色系風格的登入資訊列 */
+        .user-info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1a1a1a;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+            width: 100%;
+            max-width: 600px;
+            box-sizing: border-box;
+        }
+        .btn-logout { 
+            background-color: #ef4444; 
+            padding: 4px 12px; 
+            font-size: 12px; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-logout:hover { background-color: #dc2626; }
+
+        #control-panel {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        #difficulty-panel {
+            display: flex;
+            gap: 8px;
+        }
+        .diff-btn {
+            background: #222;
+            border: 2px solid #555;
+            color: #ccc;
+            padding: 6px 12px;
+            font-size: 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .diff-btn:hover {
+            border-color: #00ffcc;
+            color: #fff;
+        }
+        .diff-btn.active {
+            background: #00ffcc;
+            border-color: #00ffcc;
+            color: #111;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+        #level-select {
+            background: #222;
+            border: 2px solid #00ffcc;
+            color: #fff;
+            padding: 6px 12px;
+            font-size: 14px;
+            border-radius: 5px;
+            outline: none;
+            cursor: pointer;
+        }
+        #level-select:focus {
+            box-shadow: 0 0 10px #00ffcc;
+        }
+        #pause-btn {
+            background: #222;
+            border: 2px solid #ffcc00;
+            color: #ffcc00;
+            padding: 6px 15px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        #pause-btn:hover {
+            background: #ffcc00;
+            color: #111;
+            box-shadow: 0 0 10px rgba(255, 204, 0, 0.4);
+        }
+        #game-container {
+            position: relative;
+            border: 4px solid #333;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
+            background: #050505;
+        }
+        canvas {
+            display: block;
+            cursor: pointer;
+        }
+        #ui-panel {
+            margin-top: 15px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        input {
+            background: #222;
+            border: 2px solid #00ffcc;
+            color: #fff;
+            padding: 10px 15px;
+            font-size: 18px;
+            border-radius: 5px;
+            outline: none;
+            text-align: center;
+            width: 200px;
+            letter-spacing: 1px;
+        }
+        input:focus {
+            box-shadow: 0 0 10px #00ffcc;
+        }
+        #hint-text {
+            color: #aaa;
+            font-size: 16px;
+            min-width: 150px;
+        }
+        #score-board {
+            font-size: 18px;
+            color: #ffcc00;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <h1>🚀 單字侵略者 WORD INVADERS</h1>
+    
+    <div id="game-app">
+        <div id="user-bar" class="user-info-bar">
+            <span>👤 學生：<span id="user-email-display">載入中...</span></span>
+            <button id="logout-btn" class="btn-logout">登出</button>
+        </div>
+
+        <div id="control-panel">
+            <label for="level-select" style="color: #00ffcc; font-weight: bold;">選擇關卡：</label>
+            <select id="level-select">
+                <option value="">正在從雲端同步分類...</option>
+            </select>
+
+            <div id="difficulty-panel">
+                <button class="diff-btn" data-speed="slow">慢速 (Slow)</button>
+                <button class="diff-btn active" data-speed="normal">中速 (Normal)</button>
+                <button class="diff-btn" data-speed="fast">快速 (Fast)</button>
+            </div>
+            <button id="pause-btn">⏸️ 暫停 (ESC)</button>
+        </div>
+
+        <div id="game-container">
+            <canvas id="gameCanvas" width="600" height="500"></canvas>
+        </div>
+
+        <div id="ui-panel">
+            <span id="hint-text">正在載入單字庫...</span>
+            <input type="text" id="wordInput" placeholder="輸入英文單字..." autocomplete="off" disabled>
+            <div id="score-board">分數: <span id="score">0</span> | 生命: <span id="lives">3</span> | 剩餘單字: <span id="rem-words">0</span></div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase 初始化設定
+        const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+        
+        let supabaseClient = null;
+        let currentUser = null;
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const wordInput = document.getElementById('wordInput');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const remWordsEl = document.getElementById('rem-words');
+        const hintEl = document.getElementById('hint-text');
+        const diffButtons = document.querySelectorAll('.diff-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const levelSelect = document.getElementById('level-select');
+
+        // 音效系統
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playLaserSound() {
+            initAudio();
+            if (!audioCtx) return;
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function playExplosionSound() {
+            initAudio();
+            if (!audioCtx) return;
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(10, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        // 發音系統
+        function speakWord(text) {
+            if (isPaused) return;
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                let utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        const difficultySettings = {
+            slow:   { baseSpeed: 0.0315, maxSpeed: 0.0504, spawnInterval: 1000 }, 
+            normal: { baseSpeed: 0.063,  maxSpeed: 0.0945, spawnInterval: 600 }, 
+            fast:   { baseSpeed: 0.126,  maxSpeed: 0.189,  spawnInterval: 300 }   
+        };
+
+        let currentDifficulty = 'normal';
+
+        // 遊戲狀態與主角控制
+        let wordBank = [];
+        let score = 0;
+        let lives = 3;
+        let invaders = [];
+        let bullets = [];
+        let particles = [];
+        let spawnTimer = 0;
+        let spawnInterval = difficultySettings[currentDifficulty].spawnInterval;
+        let gameOver = false;
+        let gameWin = false;  
+        let isPaused = false;
+        let animationId = null; 
+
+        // 主角戰機狀態
+        const player = {
+            x: canvas.width / 2,        
+            targetX: canvas.width / 2,  
+            y: canvas.height - 25,      
+            speed: 8,                   
+            currentTarget: null        
+        };
+
+        // 🌟 網頁初始化與身份驗證
+        window.onload = async function() {
+            if (typeof window.supabase === 'undefined') {
+                alert("⚠️ 系統載入失敗！您的瀏覽器攔截了資料庫連線。");
+                return;
+            }
+
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            // 檢查使用者登入狀態
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session && session.user) {
+                currentUser = session.user;
+                document.getElementById('user-email-display').innerText = currentUser.email;
+                document.getElementById('game-app').style.display = 'flex'; // 驗證成功顯示畫面
+                
+                setupEventListeners();
+                // 優先加載雲端分類選單，載入完畢後會自動觸發第一次的單字撈取
+                await loadCategoriesFromSupabase();
+            } else {
+                window.location.href = 'login.html'; // 未登入踢回
+            }
+        };
+
+        // 🌟 核心新增：從雲端獲取單字分類並填入關卡下拉選單中
+        async function loadCategoriesFromSupabase() {
+            const { data, error } = await supabaseClient
+                .from('categories')
+                .select('code, name')
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                alert(`載入單字庫分類失敗：${error.message}`);
+                return;
+            }
+
+            levelSelect.innerHTML = '';
+            if (data && data.length > 0) {
+                data.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat.code;
+                    opt.innerText = `${cat.name} (${cat.code})`;
+                    levelSelect.appendChild(opt);
+                });
+                // 預設直接加載雲端獲取到的第一個分區
+                loadLevelFromSupabase(levelSelect.value);
+            } else {
+                levelSelect.innerHTML = '<option value="">⚠️ 雲端目前未設定任何分類</option>';
+                hintEl.innerText = "請先至管理後台新增單字分類。";
+            }
+        }
+
+        // 🌟 核心修改：資料來源完全由 Supabase 匯入取代原本地 fetch JSON
+        async function loadLevelFromSupabase(categoryCode) {
+            // 重置遊戲所有狀態
+            score = 0;
+            lives = 3;
+            invaders = [];
+            bullets = [];
+            particles = [];
+            spawnTimer = 0;
+            gameOver = false;
+            gameWin = false;
+            isPaused = false;
+            player.x = canvas.width / 2;
+            player.targetX = canvas.width / 2;
+            player.currentTarget = null;
+
+            scoreEl.innerText = score;
+            livesEl.innerText = lives;
+            pauseBtn.innerHTML = "⏸️ 暫停 (ESC)";
+            wordInput.value = '';
+            wordInput.disabled = true;
+            hintEl.innerText = "正在從雲端載入關卡單字...";
+            hintEl.style.color = "#aaa";
+
+            if (animationId) cancelAnimationFrame(animationId);
+
+            // 從 Supabase 撈取該分類的所有單字
+            const { data: wordsData, error: wordsError } = await supabaseClient
+                .from('words')
+                .select('*')
+                .eq('category_code', categoryCode);
+
+            if (wordsError) {
+                console.error("無法讀取雲端資料:", wordsError);
+                hintEl.innerText = `❌ 載入失敗: ${wordsError.message}`;
+                hintEl.style.color = "#ff3333";
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ff3333';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`無法從雲端載入分類資料`, canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            wordBank = wordsData || []; 
+            remWordsEl.innerText = wordBank.length;
+            initGame();
+        }
+
+        async function handleLogout() {
+            await supabaseClient.auth.signOut();
+            window.location.href = 'login.html'; 
+        }
+
+        // 侵略者類別
+        class Invader {
+            constructor(data) {
+                this.en = data.en.toLowerCase();
+                this.ch = data.ch;
+                this.hint = data.hint;
+                this.x = Math.random() * (canvas.width - 120) + 40;
+                this.y = -30;
+                
+                this.clickWidth = 80;
+                this.clickHeight = 26;
+
+                const settings = difficultySettings[currentDifficulty];
+                this.speed = Math.random() * (settings.maxSpeed - settings.baseSpeed) + settings.baseSpeed;
+                this.isTargeted = false;
+
+                speakWord(this.en);
+            }
+
+            update() {
+                this.y += this.speed;
+            }
+
+            draw() {
+                ctx.fillStyle = this.isTargeted ? '#ff3333' : '#00ffcc';
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.ch, this.x, this.y);
+                
+                ctx.strokeStyle = this.isTargeted ? 'rgba(255, 51, 51, 0.4)' : 'rgba(0, 255, 204, 0.2)';
+                ctx.strokeRect(this.x - this.clickWidth/2, this.y - 20, this.clickWidth, this.clickHeight);
+            }
+        }
+
+        // 子彈類別
+        class Bullet {
+            constructor(startX, startY, targetInvader) {
+                this.x = startX;
+                this.y = startY;
+                this.target = targetInvader;
+                this.speed = 14;
+                this.alive = true;
+                playLaserSound();
+            }
+
+            update() {
+                let dx = this.target.x - this.x;
+                let dy = this.target.y - this.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < this.speed) {
+                    this.alive = false;
+                    playExplosionSound();
+                    createExplosion(this.target.x, this.target.y);
+                    invaders = invaders.filter(inv => inv !== this.target);
+                    score += 10;
+                    scoreEl.innerText = score;
+
+                    if (wordBank.length === 0 && invaders.length === 0) {
+                        gameWin = true;
+                    }
+                } else {
+                    this.x += (dx / distance) * this.speed;
+                    this.y += (dy / distance) * this.speed;
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = '#ffcc00';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // 粒子系統
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 6;
+                this.vy = (Math.random() - 0.5) * 6;
+                this.alpha = 1;
+                this.color = Math.random() > 0.5 ? '#00ffcc' : '#ffcc00';
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= 0.03;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, 3, 3);
+                ctx.restore();
+            }
+        }
+
+        function createExplosion(x, y) {
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        function togglePause() {
+            if (gameOver || gameWin) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseBtn.innerHTML = "▶️ 恢復 (ESC)";
+                wordInput.disabled = true;
+                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            } else {
+                pauseBtn.innerHTML = "⏸️ 暫停 (ESC)";
+                wordInput.disabled = false;
+                wordInput.focus();
+                gameLoop();
+            }
+        }
+
+        // 綁定鍵盤與點擊事件
+        function setupEventListeners() {
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+
+            window.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    togglePause();
+                    e.preventDefault();
+                    return;
+                }
+
+                if (e.key === 'Enter' && e.target === wordInput && !isPaused && !gameOver && !gameWin) {
+                    initAudio();
+                    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+                    const inputText = wordInput.value.trim().toLowerCase();
+                    let matchIndex = invaders.findIndex(inv => inv.en === inputText && !inv.isTargeted);
+                    
+                    if (matchIndex !== -1) {
+                        let target = invaders[matchIndex];
+                        target.isTargeted = true;
+                        
+                        player.targetX = target.x;
+                        player.currentTarget = target; 
+
+                        wordInput.value = '';
+                        hintEl.innerText = "目標鎖定，戰機移動中！";
+                        hintEl.style.color = "#00ffcc";
+                    } else {
+                        hintEl.innerText = "打錯囉！再試試";
+                        hintEl.style.color = "#ff3333";
+                    }
+                }
+            });
+
+            canvas.addEventListener('click', function(e) {
+                if (isPaused || gameOver || gameWin) return;
+                initAudio();
+
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                for (let inv of invaders) {
+                    let xMin = inv.x - inv.clickWidth / 2;
+                    let xMax = inv.x + inv.clickWidth / 2;
+                    let yMin = inv.y - 20;
+                    let yMax = inv.y + 6;
+
+                    if (mouseX >= xMin && mouseX <= xMax && mouseY >= yMin && mouseY <= yMax) {
+                        speakWord(inv.en); 
+                        break; 
+                    }
+                }
+            });
+
+            pauseBtn.addEventListener('click', togglePause);
+
+            // 下拉選單切換時，讀取對應的 Supabase 分類
+            levelSelect.addEventListener('change', function() {
+                loadLevelFromSupabase(this.value);
+            });
+
+            diffButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    initAudio();
+                    diffButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentDifficulty = this.getAttribute('data-speed');
+                    spawnInterval = difficultySettings[currentDifficulty].spawnInterval;
+                    spawnTimer = 0;
+                    if (!isPaused) wordInput.focus();
+                });
+            });
+        }
+
+        function initGame() {
+            wordInput.disabled = false;
+            wordInput.focus();
+            hintEl.innerText = "關卡載入成功，請在下方輸入單字！";
+            hintEl.style.color = "#aaa";
+            gameLoop();
+        }
+
+        function updateHint() {
+            if (invaders.length > 0 && wordInput.value === '') {
+                let lowest = invaders.reduce((prev, current) => (prev.y > current.y) ? prev : current);
+                hintEl.innerText = lowest.hint ? `提示: ${lowest.hint}` : `提示: 第一個字母是「${lowest.en.charAt(0)}」`;
+                hintEl.style.color = "#aaa";
+            } else if (invaders.length === 0 && wordBank.length > 0) {
+                hintEl.innerText = "等待下一波敵人...";
+            } else if (wordBank.length === 0 && invaders.length > 0) {
+                hintEl.innerText = "⚡ 這是最後一波敵人了！通關就在眼前！";
+                hintEl.style.color = "#ffcc00";
+            }
+        }
+
+        function updatePlayer() {
+            if (isPaused || gameOver || gameWin) return;
+
+            let dx = player.targetX - player.x;
+            if (Math.abs(dx) > player.speed) {
+                player.x += Math.sign(dx) * player.speed;
+            } else {
+                player.x = player.targetX; 
+                if (player.currentTarget) {
+                    if (invaders.includes(player.currentTarget)) {
+                        bullets.push(new Bullet(player.x, player.y - 10, player.currentTarget));
+                    }
+                    player.currentTarget = null; 
+                }
+            }
+        }
+
+        function drawPlayer() {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y - 10);
+            ctx.lineTo(player.x - 20, player.y + 15);
+            ctx.lineTo(player.x + 20, player.y + 15);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = player.currentTarget ? '#ff3333' : '#00ffcc';
+            ctx.fillRect(player.x - 4, player.y + 15, 8, 5);
+        }
+
+        function gameLoop() {
+            if (isPaused) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = 'bold 36px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('⏸️ 遊戲暫停中', canvas.width / 2, canvas.height / 2);
+                ctx.fillStyle = '#fff';
+                ctx.font = '16px Arial';
+                ctx.fillText('按下 ESC 鍵或點擊恢復按鈕繼續遊戲', canvas.width / 2, canvas.height / 2 + 40);
+                return;
+            }
+
+            if (gameWin) {
+                wordInput.disabled = true;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#00ffcc';
+                ctx.font = 'bold 45px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('🎉 YOU WIN! 通關成功', canvas.width / 2, canvas.height / 2 - 20);
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px Arial';
+                ctx.fillText(`最終完美得分: ${score}`, canvas.width / 2, canvas.height / 2 + 30);
+                ctx.fillStyle = '#aaa';
+                ctx.font = '16px Arial';
+                ctx.fillText(`可透過上方選單切換至其他雲端關卡繼續挑戰！`, canvas.width / 2, canvas.height / 2 + 70);
+                return;
+            }
+
+            if (gameOver) {
+                wordInput.disabled = true;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ff3333';
+                ctx.font = 'bold 40px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 20);
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px Arial';
+                ctx.fillText(`最終得分: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+                ctx.fillText(`請從上方選單重新選關或重整挑戰`, canvas.width / 2, canvas.height / 2 + 60);
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            updatePlayer();
+
+            spawnTimer++;
+            if (spawnTimer >= spawnInterval && wordBank.length > 0) {
+                spawnTimer = 0;
+                const randomIndex = Math.floor(Math.random() * wordBank.length);
+                const randomWord = wordBank.splice(randomIndex, 1)[0];
+                invaders.push(new Invader(randomWord));
+                remWordsEl.innerText = wordBank.length; 
+            }
+
+            invaders.forEach((invader) => {
+                invader.update();
+                invader.draw();
+
+                if (invader.y >= canvas.height - 40) {
+                    if (player.currentTarget === invader) {
+                        player.currentTarget = null;
+                    }
+                    lives--;
+                    livesEl.innerText = lives;
+                    playExplosionSound();
+                    createExplosion(invader.x, invader.y);
+                    invaders = invaders.filter(inv => inv !== invader);
+                    if (lives <= 0) gameOver = true;
+                }
+            });
+
+            bullets.forEach((bullet, index) => {
+                bullet.update();
+                if (bullet.alive) {
+                    bullet.draw();
+                } else {
+                    bullets.splice(index, 1);
+                }
+            });
+
+            particles.forEach((p, index) => {
+                p.update();
+                if (p.alpha <= 0) {
+                    particles.splice(index, 1);
+                } else {
+                    p.draw();
+                }
+            });
+
+            drawPlayer();
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - 40);
+            ctx.lineTo(canvas.width, canvas.height - 40);
+            ctx.stroke();
+
+            updateHint();
+
+            animationId = requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>

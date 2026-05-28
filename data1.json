@@ -1,0 +1,72 @@
+[
+  {
+    "en": "yesterday",
+    "ch": "昨天",
+    "hint": "y_______y"
+  },
+  {
+    "en": "beach",
+    "ch": "海灘",
+    "hint": "b___h"
+  },
+  {
+    "en": "trash",
+    "ch": "垃圾",
+    "hint": "t___h"
+  },
+  {
+    "en": "ago",
+    "ch": "前；以前",
+    "hint": "a_o"
+  },
+  {
+    "en": "visit",
+    "ch": "拜訪",
+    "hint": "v___t"
+  },
+  {
+    "en": "island",
+    "ch": "島嶼",
+    "hint": "i____d"
+  },
+  {
+    "en": "a few",
+    "ch": "幾個；一些",
+    "hint": "a_f_w"
+  },
+  {
+    "en": "sea",
+    "ch": "海",
+    "hint": "s_a"
+  },
+  {
+    "en": "stop",
+    "ch": "停止",
+    "hint": "s__p"
+  },
+  {
+    "en": "happen",
+    "ch": "發生",
+    "hint": "h____n"
+  },
+  {
+    "en": "dead",
+    "ch": "死亡的",
+    "hint": "d__d"
+  },
+  {
+    "en": "warm",
+    "ch": "溫暖的",
+    "hint": "w__m"
+  },
+  {
+    "en": "rainforest",
+    "ch": "雨林",
+    "hint": "r________t"
+  },
+  {
+    "en": "die",
+    "ch": "死亡",
+    "hint": "d_e"
+  }
+]

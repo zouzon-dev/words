@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單字標記與管理系統</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: none; /* 登入確認後顯示 */
+        }
+        h2 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
+        
+        .user-info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #e2e8f0;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .btn-logout { background-color: #ef4444; padding: 4px 10px; font-size: 12px; color: white; border: none; border-radius: 4px; cursor: pointer;}
+        .btn-logout:hover { background-color: #dc2626; }
+
+        .filter-group {
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #fdfdfd;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+        }
+        select, input[type="text"] {
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+        select { flex: 1; }
+        input[type="text"] { flex: 1; }
+
+        /* 狀態列統計 */
+        .stats-summary {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        /* 表格樣式 */
+        .word-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 15px;
+        }
+        .word-table th, .word-table td {
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+        }
+        .word-table th {
+            background-color: #f8fafc;
+            color: #334155;
+            font-weight: bold;
+        }
+        .word-table tr:hover {
+            background-color: #f1f5f9;
+        }
+        
+        /* 星號按鈕 */
+        .star-btn {
+            background: none;
+            border: none;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 0;
+            color: #cbd5e1;
+            transition: transform 0.1s;
+        }
+        .star-btn:hover { transform: scale(1.2); }
+        .star-btn.active { color: #f59e0b; }
+
+        /* 發音按鈕 */
+        .btn-audio {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-audio:hover { background-color: #27ae60; }
+
+        .loading-text {
+            text-align: center;
+            padding: 20px;
+            color: #64748b;
+            font-style: italic;
+        }
+        .badge-wrong {
+            background-color: #fee2e2;
+            color: #ef4444;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container" id="app-container">
+    <h2>📋 英文單字清單與標記管理</h2>
+    
+    <div id="user-bar" class="user-info-bar">
+        <span>👤 管理者/學生：<span id="user-email-display">載入中...</span></span>
+        <button id="logout-btn" class="btn-logout">登出</button>
+    </div>
+
+    <div class="filter-group">
+        <label for="db-select"><strong>分類篩選：</strong></label>
+        <select id="db-select">
+            <option value="">正在載入分類...</option>
+        </select>
+
+        <label for="search-input"><strong>關鍵字搜尋：</strong></label>
+        <input type="text" id="search-input" placeholder="搜尋英文或中文...">
+    </div>
+
+    <div class="stats-summary" id="stats-summary">
+        當前分類單字數：0 個 | 已收藏 (Marked)：0 個
+    </div>
+
+    <table class="word-table">
+        <thead>
+            <tr>
+                <th style="width: 60px; text-align: center;">收藏</th>
+                <th>英文單字 (en)</th>
+                <th>中文翻譯 (ch)</th>
+                <th>文字提示 (hint)</th>
+                <th style="width: 80px; text-align: center;">錯誤次數</th>
+                <th style="width: 70px; text-align: center;">發音</th>
+            </tr>
+        </thead>
+        <tbody id="word-table-body">
+            <tr>
+                <td colspan="6" class="loading-text">請先選擇單字分類...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    
+    let supabaseClient = null;
+    let currentUser = null;
+    let allWordsFetched = []; // 存放當前分類撈出來的原始單字資料
+
+    window.onload = async function() {
+        if (typeof window.supabase === 'undefined') {
+            alert("⚠️ 系統載入失敗！無法連線至 Supabase。");
+            return;
+        }
+
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // 檢查登入狀態
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && session.user) {
+            currentUser = session.user;
+            document.getElementById('user-email-display').innerText = currentUser.email;
+            document.getElementById('app-container').style.display = 'block';
+            
+            bindEvents();
+            await loadCategories();
+        } else {
+            window.location.href = 'login.html';
+        }
+    };
+
+    function bindEvents() {
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+            window.location.href = 'login.html';
+        });
+
+        // 分類切換與關鍵字搜尋事件
+        document.getElementById('db-select').addEventListener('change', fetchWordsFromCategory);
+        document.getElementById('search-input').addEventListener('input', renderWordTable);
+    }
+
+    // 1. 載入動態分類選單
+    async function loadCategories() {
+        const selectEl = document.getElementById('db-select');
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('code, name')
+            .eq('hide', false)
+            .eq('archive', false)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            alert(`載入分類失敗：${error.message}`);
+            return;
+        }
+
+        selectEl.innerHTML = '';
+        if (data && data.length > 0) {
+            data.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.code;
+                opt.innerText = `${cat.name} (${cat.code})`;
+                selectEl.appendChild(opt);
+            });
+            // 預設撈取第一個分類的單字
+            fetchWordsFromCategory();
+        } else {
+            selectEl.innerHTML = '<option value="">無可用分類</option>';
+        }
+    }
+
+    // 2. 依據選擇的分類，從雲端撈取單字與對應的標記狀態 (user_word_stats)
+    async function fetchWordsFromCategory() {
+        const targetCategory = document.getElementById('db-select').value;
+        if (!targetCategory) return;
+
+        const tbody = document.getElementById('word-table-body');
+        tbody.innerHTML = '<tr><td colspan="6" class="loading-text">資料同步中，請稍候...</td></tr>';
+
+        // A. 抓取 words
+        const { data: wordsData, error: wordsError } = await supabaseClient
+            .from('words')
+            .select('*')
+            .eq('category_code', targetCategory)
+            .order('en', { ascending: true });
+
+        if (wordsError) {
+            tbody.innerHTML = `<tr><td colspan="6" class="loading-text" style="color:red;">錯誤: ${wordsError.message}</td></tr>`;
+            return;
+        }
+
+        // B. 抓取目前使用者的標記與錯題紀錄
+        const { data: statsData } = await supabaseClient
+            .from('user_word_stats')
+            .select('word_id, is_starred, wrong_count')
+            .eq('user_id', currentUser.id);
+
+        const statsMap = {};
+        if (statsData) {
+            statsData.forEach(item => {
+                statsMap[item.word_id] = {
+                    is_starred: item.is_starred || false,
+                    wrong_count: item.wrong_count || 0
+                };
+            });
+        }
+
+        // C. 整合資料結構
+        allWordsFetched = wordsData.map(w => ({
+            ...w,
+            is_starred: statsMap[w.id] ? statsMap[w.id].is_starred : false,
+            wrong_count: statsMap[w.id] ? statsMap[w.id].wrong_count : 0
+        }));
+
+        renderWordTable();
+    }
+
+    // 3. 渲染與過濾單字表格
+    function renderWordTable() {
+        const tbody = document.getElementById('word-table-body');
+        const keyword = document.getElementById('search-input').value.toLowerCase().trim();
+        
+        // 關鍵字過濾
+        const filteredWords = allWordsFetched.filter(w => {
+            return w.en.toLowerCase().includes(keyword) || w.ch.toLowerCase().includes(keyword);
+        });
+
+        // 更新統計文字
+        const markedCount = filteredWords.filter(w => w.is_starred).length;
+        document.getElementById('stats-summary').innerText = `當前篩選單字數：${filteredWords.length} 個 | 已收藏 (Marked)：${markedCount} 個`;
+
+        tbody.innerHTML = '';
+        if (filteredWords.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="loading-text">沒有找到符合的單字。</td></tr>';
+            return;
+        }
+
+        filteredWords.forEach(word => {
+            const tr = document.createElement('tr');
+
+            // 星號 Marked 欄位
+            const tdStar = document.createElement('td');
+            tdStar.style.textAlign = 'center';
+            const starBtn = document.createElement('button');
+            starBtn.className = `star-btn ${word.is_starred ? 'active' : ''}`;
+            starBtn.innerHTML = '★';
+            starBtn.onclick = () => toggleStar(word, starBtn);
+            tdStar.appendChild(starBtn);
+
+            // 英文、中文、提示
+            const tdEn = document.createElement('td');
+            tdEn.style.fontWeight = 'bold';
+            tdEn.innerText = word.en;
+
+            const tdCh = document.createElement('td');
+            tdCh.innerText = word.ch;
+
+            const tdHint = document.createElement('td');
+            tdHint.style.color = '#64748b';
+            tdHint.style.fontSize = '14px';
+            tdHint.innerText = word.hint || '—';
+
+            // 錯誤次數
+            const tdWrong = document.createElement('td');
+            tdWrong.style.textAlign = 'center';
+            if (word.wrong_count > 0) {
+                tdWrong.innerHTML = `<span class="badge-wrong">${word.wrong_count} 次</span>`;
+            } else {
+                tdWrong.innerText = '0';
+            }
+
+            // 發音按鈕
+            const tdAudio = document.createElement('td');
+            tdAudio.style.textAlign = 'center';
+            const audioBtn = document.createElement('button');
+            audioBtn.className = 'btn-audio';
+            audioBtn.innerText = '🔊 發音';
+            audioBtn.onclick = () => speak(word.en);
+            tdAudio.appendChild(audioBtn);
+
+            // 組合列
+            tr.appendChild(tdStar);
+            tr.appendChild(tdEn);
+            tr.appendChild(tdCh);
+            tr.appendChild(tdHint);
+            tr.appendChild(tdWrong);
+            tr.appendChild(tdAudio);
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 4. 在清單中直接點擊星號：同步變更狀態至 Supabase 後端資料庫
+    async function toggleStar(word, buttonEl) {
+        word.is_starred = !word.is_starred;
+        
+        // 即時變更前端顯示樣式
+        if (word.is_starred) {
+            buttonEl.classList.add('active');
+        } else {
+            buttonEl.classList.remove('active');
+        }
+
+        // 同步回報給 Supabase
+        const { error } = await supabaseClient
+            .from('user_word_stats')
+            .upsert({
+                user_id: currentUser.id,
+                word_id: word.id,
+                is_starred: word.is_starred,
+                last_attempt_at: new Date().toISOString()
+            }, { onConflict: 'user_id,word_id' });
+
+        if (error) {
+            console.error("更新標記失敗:", error.message);
+        }
+
+        // 重新計算標記總數顯示
+        const markedCount = allWordsFetched.filter(w => w.is_starred).length;
+        const currentTotal = document.getElementById('search-input').value ? '篩選' : '當前分類';
+        document.getElementById('stats-summary').innerText = `單字總數：${allWordsFetched.length} 個 | 已收藏 (Marked)：${markedCount} 個`;
+    }
+
+    // 文字發音功能
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.95;
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+</script>
+
+</body>
+</html>

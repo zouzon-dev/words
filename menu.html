@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單字練習系統 - 主選單</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 微調漸層與陰影動畫 */
+        .menu-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .menu-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col justify-between font-sans antialiased">
+
+    <header class="bg-white shadow-sm border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 text-white p-2 rounded-lg">
+                    <i class="fa-solid fa-graduation-cap text-xl"></i>
+                </div>
+                <h1 class="text-xl font-bold text-slate-800 tracking-wide">單字學習核心系統</h1>
+            </div>
+            <div class="text-sm text-slate-500">
+                <i class="fa-regular fa-clock mr-1"></i> 今日事，今日畢！
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8 flex-grow w-full">
+        <div class="text-center mb-12">
+            <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">歡迎使用單字練習系統</h2>
+            <p class="mt-3 max-w-2xl mx-auto text-xl text-slate-500 sm:mt-4">請選擇您今天想要進行的練習或管理功能</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            
+            <a href="typing.html" class="menu-card bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-keyboard text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">單字練打</h3>
+                    <p class="text-sm text-slate-500 mt-2">經由實際鍵盤輸入，強化肌肉記憶，徹底熟記英文拼音。</p>
+                </div>
+                <div class="mt-6 flex items-center text-sm font-semibold text-blue-600">
+                    立即開始 <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
+                </div>
+            </a>
+
+            <a href="word_choose_chinese.html" class="menu-card bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-list-check text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">英翻中選擇</h3>
+                    <p class="text-sm text-slate-500 mt-2">看英文選中文，快速測試你的字彙認讀能力與反應速度。</p>
+                </div>
+                <div class="mt-6 flex items-center text-sm font-semibold text-emerald-600">
+                    進入挑戰 <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
+                </div>
+            </a>
+
+            <a href="game.html" class="menu-card bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-gamepad text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">單字遊戲</h3>
+                    <p class="text-sm text-slate-500 mt-2">寓教於樂！透過趣味遊戲機制，讓背單字不再枯燥乏味。</p>
+                </div>
+                <div class="mt-6 flex items-center text-sm font-semibold text-amber-600">
+                    開始遊戲 <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
+                </div>
+            </a>
+
+            <a href="word_test.html" class="menu-card bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-file-invoice text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">單字測試</h3>
+                    <p class="text-sm text-slate-500 mt-2">模擬真實考試環境，全面檢驗學習成果，找出尚未掌握的弱點字彙。</p>
+                </div>
+                <div class="mt-6 flex items-center text-sm font-semibold text-violet-600">
+                    開始測試 <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
+                </div>
+            </a>
+
+            <a href="word_manager.html" class="menu-card bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-book text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">單字管理</h3>
+                    <p class="text-sm text-slate-500 mt-2">檢視、修改或刪除系統內的單字庫，客製化你的學習內容。</p>
+                </div>
+                <div class="mt-6 flex items-center text-sm font-semibold text-purple-600">
+                    管理單字 <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
+                </div>
+            </a>
+
+            <a href="category_manager.html" class="menu-card bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-folder-open text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">單字集管理</h3>
+                    <p class="text-sm text-slate-500 mt-2">將單字分類（如：多益、基礎、日常），依不同主題進行複習。</p>
+                </div>
+                <div class="mt-6 flex items-center text-sm font-semibold text-rose-600">
+                    管理分類 <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
+                </div>
+            </a>
+
+            <a href="update.html" class="menu-card bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">上傳單字</h3>
+                    <p class="text-sm text-slate-500 mt-2">批次上傳或新增大量單字，快速擴充你的專屬字本。</p>
+                </div>
+                <div class="mt-6 flex items-center text-sm font-semibold text-sky-600">
+                    前往上傳 <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
+                </div>
+            </a>
+
+            <a href="insert_user.html" class="menu-card bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between sm:col-span-2 lg:col-span-3">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-start space-x-4">
+                        <div class="w-12 h-12 bg-teal-100 text-teal-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <i class="fa-solid fa-user-plus text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">新增使用者帳號</h3>
+                            <p class="text-sm text-slate-500 mt-1">建立新的學生或練習者檔案，開始追蹤個人的學習進度與歷史成績。</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 sm:mt-0 flex items-center text-sm font-semibold text-teal-600 flex-shrink-0">
+                        建立帳號 <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
+                    </div>
+                </div>
+            </a>
+
+        </div>
+    </main>
+
+    <footer class="bg-slate-800 text-slate-400 py-6 text-center text-sm border-t border-slate-700">
+        <p>© 2026 單字練習系統. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>

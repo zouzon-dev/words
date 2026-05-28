@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英文單字測驗系統（嚴格三錯防連擊版）</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h2 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
+        
+        .selector-group {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #fdfdfd;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px dashed #cbd5e1;
+        }
+        select {
+            padding: 8px 12px;
+            font-size: 15px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            outline: none;
+            flex: 1;
+        }
+
+        .mode-badge {
+            display: none;
+            background-color: #ffeaa7;
+            color: #d63031;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .question-box { font-size: 24px; font-weight: bold; margin: 20px 0; color: #2c3e50; }
+        .input-group { margin: 20px 0; display: flex; gap: 10px; }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            font-size: 18px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            outline: none;
+        }
+        input[type="text"]:focus { border-color: #3498db; }
+        input[type="text"]:disabled { background-color: #f1f5f9; cursor: not-allowed; }
+        
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #2980b9; }
+        button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+        button.btn-audio { background-color: #2ecc71; }
+        button.btn-audio:hover { background-color: #27ae60; }
+        button.btn-review { background-color: #e67e22; }
+        button.btn-review:hover { background-color: #d35400; }
+        
+        .result { margin-top: 20px; font-size: 18px; font-weight: bold; min-height: 27px; }
+        .success { color: #27ae60; }
+        .error { color: #c0392b; }
+        .hint-text { color: #7f8c8d; font-size: 14px; margin-top: 5px; font-style: italic; }
+        .score-board { margin-top: 20px; font-size: 14px; color: #555; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>英文單字測驗</h2>
+    
+    <div class="selector-group" id="selector-wrapper">
+        <label for="db-select"><strong>選擇單字庫：</strong></label>
+        <select id="db-select" onchange="loadWords()">
+            <option value="data.json">預設單字庫 (data.json)</option>
+            <option value="data2.json">進階單字庫 (data2.json)</option>
+            <option value="data3.json">自訂測試庫 (data3.json)</option>
+        </select>
+    </div>
+
+    <div id="review-badge" class="mode-badge">⚠️ 正在進行【錯題本】複習模式</div>
+
+    <div id="quiz-section">
+        <div class="score-board">
+            <span id="progress">進度：0 / 0</span>
+            <span id="score">即時正確率：0%</span>
+        </div>
+        
+        <div class="question-box" id="question">載入中...</div>
+        
+        <div style="margin-bottom: 15px;">
+            <button class="btn-audio" id="audio-btn" onclick="speakCurrentWord()">🔊 發音提示</button>
+            <button style="background-color: #f39c12;" id="hint-btn" onclick="showHint()">文字提示</button>
+        </div>
+        <div id="hint-display" class="hint-text"></div>
+
+        <div class="input-group">
+            <input type="text" id="answer-input" placeholder="請輸入英文單字..." autocomplete="off" autofocus>
+            <button id="submit-btn" onclick="checkAnswer()">提交</button>
+        </div>
+
+        <div id="result-message" class="result"></div>
+    </div>
+</div>
+
+<script>
+    let wordList = [];       
+    let failedWords = [];    
+    let currentIndex = 0;
+    let correctCount = 0;
+    let attemptedCount = 0;
+    let wrongCount = 0;       // 記錄當前題目錯幾次
+    let isReviewMode = false; 
+    let isLocking = false;    // 新增：防連擊鎖定狀態鎖
+
+    async function loadWords() {
+        document.getElementById('question').innerText = "正在載入單字庫...";
+        document.getElementById('hint-display').innerText = '';
+        document.getElementById('result-message').innerText = '';
+        document.getElementById('review-badge').style.display = 'none';
+        isReviewMode = false;
+        isLocking = false;
+
+        const selectedFile = document.getElementById('db-select').value; 
+
+        try {
+            const response = await fetch(selectedFile); 
+            if (!response.ok) throw new Error(`找不到檔案：${selectedFile}`);
+            
+            wordList = await response.json();
+            wordList.sort(() => Math.random() - 0.5); 
+            
+            failedWords = []; 
+            initQuiz();
+        } catch (error) {
+            document.getElementById('question').innerHTML = `<span class="error">載入失敗: ${error.message}</span>`;
+            document.getElementById('progress').innerText = `進度：0 / 0`;
+            document.getElementById('score').innerText = `即時正確率：0%`;
+        }
+    }
+
+    function initQuiz() {
+        currentIndex = 0;
+        correctCount = 0;
+        attemptedCount = 0;
+        wrongCount = 0;
+        isLocking = false;
+        document.getElementById('score').innerText = `即時正確率：0%`;
+        showQuestion();
+    }
+
+    function showQuestion() {
+        if (wordList.length === 0) return;
+
+        if (currentIndex >= wordList.length) {
+            showSummary();
+            return;
+        }
+
+        // 解除控制元件鎖定
+        setInputsDisabled(false);
+        isLocking = false;
+        wrongCount = 0; // 新題目重設錯誤計數
+
+        const currentWord = wordList[currentIndex];
+        document.getElementById('question').innerText = `請翻譯：「${currentWord.ch}」`;
+        document.getElementById('answer-input').value = '';
+        document.getElementById('result-message').innerText = '';
+        document.getElementById('hint-display').innerText = '';
+        document.getElementById('progress').innerText = `進度：${currentIndex + 1} / ${wordList.length}`;
+        document.getElementById('answer-input').focus();
+    }
+
+    function checkAnswer() {
+        // 如果正在過場鎖定中，或已經超出範圍，直接攔截不處理
+        if (isLocking || currentIndex >= wordList.length) return;
+
+        const userInput = document.getElementById('answer-input').value.trim();
+        const currentWord = wordList[currentIndex];
+        const correctAnswer = currentWord.en.trim();
+        const resultMsg = document.getElementById('result-message');
+
+        if (!userInput) return;
+
+        // 1. 答對處理
+        if (userInput.toLowerCase() === correctAnswer.toLowerCase()) {
+            isLocking = true; // 啟動鎖定，防止兩秒內重複點擊
+            setInputsDisabled(true);
+
+            attemptedCount++;
+            correctCount++;
+            
+            resultMsg.className = "result success";
+            resultMsg.innerText = "⭕ 正確！";
+            speak(correctAnswer);
+
+            updateScoreBoard();
+            setTimeout(() => {
+                currentIndex++;
+                showQuestion();
+            }, 2000);
+        } 
+        // 2. 答錯處理
+        else {
+            wrongCount++;
+
+            if (wrongCount < 3) {
+                // 答錯第 1 或 2 次：不換題，不清空計數，只警告並讓使用者重試
+                resultMsg.className = "result error";
+                resultMsg.innerText = `❌ 錯誤！請再試一次（已答錯 ${wrongCount} 次，滿 3 次將公佈答案）`;
+                
+                document.getElementById('answer-input').value = '';
+                document.getElementById('answer-input').focus();
+            } 
+            else {
+                // 答錯第 3 次：強制作答結束，鎖定 UI 進入換題倒數
+                isLocking = true; 
+                setInputsDisabled(true);
+
+                attemptedCount++;
+                
+                resultMsg.className = "result error";
+                resultMsg.innerText = `❌ 答錯滿 3 次。正確答案是：【${correctAnswer}】`;
+                speak(correctAnswer);
+
+                // 塞入錯題本
+                const alreadyExists = failedWords.some(item => item.en.toLowerCase() === correctAnswer.toLowerCase());
+                if (!alreadyExists) {
+                    failedWords.push(currentWord);
+                }
+
+                updateScoreBoard();
+                // 留 3.5 秒讓使用者看清楚答案並聆聽正確發音
+                setTimeout(() => {
+                    currentIndex++;
+                    showQuestion();
+                }, 3500);
+            }
+        }
+    }
+
+    // 輔助：批次設定輸入元件的鎖定狀態
+    function setInputsDisabled(disabledState) {
+        document.getElementById('answer-input').disabled = disabledState;
+        document.getElementById('submit-btn').disabled = disabledState;
+        document.getElementById('audio-btn').disabled = disabledState;
+        document.getElementById('hint-btn').disabled = disabledState;
+    }
+
+    function updateScoreBoard() {
+        document.getElementById('score').innerText = `即時正確率：${Math.round((correctCount / attemptedCount) * 100)}%`;
+    }
+
+    function showSummary() {
+        const quizSection = document.getElementById('quiz-section');
+        document.getElementById('hint-display').innerText = '';
+        document.getElementById('result-message').innerText = '';
+
+        let titleText = isReviewMode ? "🎉 錯題本複習完成！" : "🎉 本卷測驗完成！";
+        let htmlContent = `
+            <h3 class="success">${titleText}</h3>
+            <p>得分表現：答對 ${correctCount} 題 / 共 ${wordList.length} 題</p>
+            <p>答對率：${Math.round((correctCount / wordList.length) * 100)}%</p>
+        `;
+
+        if (failedWords.length > 0) {
+            htmlContent += `
+                <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border: 1px solid #ffeeba; margin: 15px 0;">
+                    <p style="margin: 0 0 10px 0; color: #856404;">⚠️ 目前錯題本中累積了 <strong>${failedWords.length}</strong> 個單字。</p>
+                    <button class="btn-review" onclick="startReviewMode()">🎯 重新挑戰錯題本</button>
+                </div>
+            `;
+        } else {
+            htmlContent += `<p class="success" style="font-weight:bold;">✨ 太強了！沒有任何錯題！</p>`;
+        }
+
+        htmlContent += `<button onclick="resetToOriginalQuiz()">重新挑戰整卷</button>`;
+        quizSection.innerHTML = htmlContent;
+    }
+
+    function startReviewMode() {
+        wordList = [...failedWords]; 
+        failedWords = []; 
+        isReviewMode = true;
+        document.getElementById('review-badge').style.display = 'block';
+        restoreQuizUI();
+        initQuiz();
+    }
+
+    function resetToOriginalQuiz() {
+        loadWords(); 
+    }
+
+    function restoreQuizUI() {
+        document.getElementById('quiz-section').innerHTML = `
+            <div class="score-board">
+                <span id="progress">進度：0 / 0</span>
+                <span id="score">即時正確率：0%</span>
+            </div>
+            <div class="question-box" id="question">載入中...</div>
+            <div style="margin-bottom: 15px;">
+                <button class="btn-audio" id="audio-btn" onclick="speakCurrentWord()">🔊 發音提示</button>
+                <button style="background-color: #f39c12;" id="hint-btn" onclick="showHint()">文字提示</button>
+            </div>
+            <div id="hint-display" class="hint-text"></div>
+            <div class="input-group">
+                <input type="text" id="answer-input" placeholder="請輸入英文單字..." autocomplete="off" autofocus>
+                <button id="submit-btn" onclick="checkAnswer()">提交</button>
+            </div>
+            <div id="result-message" class="result"></div>
+        `;
+        document.getElementById('answer-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') checkAnswer();
+        });
+    }
+
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    function speakCurrentWord() {
+        if (isLocking) return;
+        if (wordList[currentIndex]) {
+            speak(wordList[currentIndex].en);
+            document.getElementById('answer-input').focus();
+        }
+    }
+
+    function showHint() {
+        if (isLocking) return;
+        const currentWord = wordList[currentIndex];
+        const hintDisplay = document.getElementById('hint-display');
+        if (currentWord) {
+            if (currentWord.hint) {
+                hintDisplay.innerText = `提示：${currentWord.hint}`;
+            } else {
+                hintDisplay.innerText = `提示：第一個字母是「${currentWord.en.charAt(0)}」，總共有 ${currentWord.en.length} 個字元。`;
+            }
+        }
+        document.getElementById('answer-input').focus();
+    }
+
+    // 初始綁定
+    document.getElementById('answer-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') checkAnswer();
+    });
+
+    window.onload = loadWords;
+</script>
+
+</body>
+</html>
