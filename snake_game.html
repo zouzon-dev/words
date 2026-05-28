@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單字貪食蛇遊戲</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+
+        .control-panel {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        select, input[type="number"] {
+            padding: 8px 12px;
+            font-size: 16px;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        select:focus, input[type="number"]:focus {
+            border-color: #764ba2;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0 5px;
+        }
+
+        button:hover:not(:disabled) {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            color: #667eea;
+        }
+
+        .game-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            min-width: 300px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            padding: 10px;
+            border: 3px solid #667eea;
+        }
+
+        canvas {
+            display: block;
+            background: white;
+            border-radius: 8px;
+            width: 100%;
+            height: auto;
+        }
+
+        .info-panel {
+            flex: 0 1 250px;
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .info-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+
+        .current-word {
+            background: #e8eaf6;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .word-item {
+            padding: 8px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 4px;
+            border-left: 3px solid #99ccff;
+            font-size: 0.9em;
+        }
+
+        .word-item.completed {
+            border-left-color: #4caf50;
+            background: #f1f8e9;
+        }
+
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            text-align: center;
+            max-width: 400px;
+            display: none;
+        }
+
+        .game-over.show {
+            display: block;
+            animation: popup 0.3s ease-out;
+        }
+
+        @keyframes popup {
+            from {
+                transform: translate(-50%, -50%) scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .game-over h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .game-over p {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #666;
+        }
+
+        .game-over button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 1.1em;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .overlay.show {
+            display: block;
+        }
+
+        .hint-text {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                flex-direction: column;
+            }
+
+            .info-panel {
+                max-height: 200px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .control-panel {
+                flex-direction: column;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="overlay" id="overlay"></div>
+
+<div class="container">
+    <h1>🐍 單字貪食蛇</h1>
+
+    <div class="control-panel">
+        <div class="control-group">
+            <label for="category-select">分類：</label>
+            <select id="category-select">
+                <option value="">載入中...</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="difficulty">難度：</label>
+            <select id="difficulty">
+                <option value="easy">簡單 (200ms)</option>
+                <option value="normal" selected>普通 (150ms)</option>
+                <option value="hard">困難 (100ms)</option>
+            </select>
+        </div>
+        <button id="start-btn">開始遊戲</button>
+        <button id="pause-btn" disabled>暫停</button>
+    </div>
+
+    <div class="stats">
+        <div class="stat-item">
+            <div>進度</div>
+            <div class="stat-value"><span id="progress">0</span>/<span id="total-words">0</span></div>
+        </div>
+        <div class="stat-item">
+            <div>分數</div>
+            <div class="stat-value" id="score">0</div>
+        </div>
+        <div class="stat-item">
+            <div>蛇長度</div>
+            <div class="stat-value" id="snake-length">0</div>
+        </div>
+        <div class="stat-item">
+            <div>目前單字</div>
+            <div class="stat-value" id="current-word-display">-</div>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas" width="600" height="400"></canvas>
+        </div>
+        <div class="info-panel">
+            <div class="info-title">當前單字</div>
+            <div class="current-word" id="current-word-info">
+                <div>等待開始...</div>
+            </div>
+            <div class="info-title">單字列表</div>
+            <div id="word-list"></div>
+        </div>
+    </div>
+</div>
+
+<div class="game-over" id="game-over">
+    <h2 id="game-over-title">遊戲結束！</h2>
+    <p>分數：<strong id="final-score">0</strong></p>
+    <p>完成單字：<strong id="completed-words">0</strong>/<span id="total-final">0</span></p>
+    <button onclick="location.reload()">重新開始</button>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+
+    // 遊戲配置
+    const GRID_SIZE = 20;
+    const SPEEDS = {
+        easy: 200,
+        normal: 150,
+        hard: 100
+    };
+
+    // 遊戲狀態
+    let gameState = {
+        snake: [{x: 10, y: 10}],
+        direction: {x: 1, y: 0},
+        nextDirection: {x: 1, y: 0},
+        score: 0,
+        wordIndex: 0,
+        charIndex: 0,
+        wordList: [],
+        currentFood: null,
+        isRunning: false,
+        isPaused: false,
+        gameOver: false,
+        completedWords: 0
+    };
+
+    let supabaseClient = null;
+    let gameLoop = null;
+    let canvas, ctx;
+
+    // 初始化
+    async function init() {
+        canvas = document.getElementById('gameCanvas');
+        ctx = canvas.getContext('2d');
+
+        // 計算canvas大小
+        const wrapper = canvas.parentElement;
+        canvas.width = 600;
+        canvas.height = 400;
+
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // 加載分類
+        await loadCategories();
+
+        // 綁定事件
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('pause-btn').addEventListener('click', togglePause);
+        document.getElementById('difficulty').addEventListener('change', function() {
+            if (!gameState.isRunning) {
+                document.getElementById('difficulty').disabled = false;
+            }
+        });
+
+        document.addEventListener('keydown', handleKeyPress);
+
+        // 初始繪製
+        draw();
+    }
+
+    async function loadCategories() {
+        try {
+            const { data } = await supabaseClient
+                .from('categories')
+                .select('code, name')
+                .order('created_at', { ascending: true });
+
+            const select = document.getElementById('category-select');
+            select.innerHTML = '';
+            if (data && data.length > 0) {
+                data.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat.code;
+                    opt.innerText = `${cat.name} (${cat.code})`;
+                    select.appendChild(opt);
+                });
+            }
+        } catch (error) {
+            console.error('載入分類失敗:', error);
+        }
+    }
+
+    async function startGame() {
+        const categoryCode = document.getElementById('category-select').value;
+        if (!categoryCode) {
+            alert('請選擇分類');
+            return;
+        }
+
+        try {
+            // 加載單字
+            const { data } = await supabaseClient
+                .from('words')
+                .select('*')
+                .eq('category_code', categoryCode);
+
+            if (!data || data.length === 0) {
+                alert('此分類沒有單字');
+                return;
+            }
+
+            // 隨機打亂單字
+            gameState.wordList = data.sort(() => Math.random() - 0.5);
+            gameState.wordIndex = 0;
+            gameState.charIndex = 0;
+            gameState.score = 0;
+            gameState.completedWords = 0;
+            gameState.snake = [{x: 10, y: 10}];
+            gameState.direction = {x: 1, y: 0};
+            gameState.nextDirection = {x: 1, y: 0};
+            gameState.gameOver = false;
+            gameState.isRunning = true;
+            gameState.isPaused = false;
+
+            // 禁用開始按鈕和分類選擇
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('category-select').disabled = true;
+            document.getElementById('difficulty').disabled = true;
+            document.getElementById('pause-btn').disabled = false;
+
+            // 更新UI
+            document.getElementById('total-words').innerText = gameState.wordList.length;
+            updateWordList();
+            generateFood();
+
+            // 啟動遊戲循環
+            if (gameLoop) clearInterval(gameLoop);
+            const speed = SPEEDS[document.getElementById('difficulty').value || 'normal'];
+            gameLoop = setInterval(update, speed);
+
+        } catch (error) {
+            console.error('開始遊戲失敗:', error);
+            alert('遊戲啟動失敗，請重試');
+        }
+    }
+
+    function togglePause() {
+        if (!gameState.isRunning) return;
+
+        gameState.isPaused = !gameState.isPaused;
+        document.getElementById('pause-btn').innerText = gameState.isPaused ? '繼續' : '暫停';
+
+        if (!gameState.isPaused) {
+            const speed = SPEEDS[document.getElementById('difficulty').value || 'normal'];
+            gameLoop = setInterval(update, speed);
+        } else {
+            clearInterval(gameLoop);
+        }
+    }
+
+    function generateFood() {
+        let x, y, collision;
+        do {
+            x = Math.floor(Math.random() * (canvas.width / GRID_SIZE));
+            y = Math.floor(Math.random() * (canvas.height / GRID_SIZE));
+            collision = gameState.snake.some(segment => segment.x === x && segment.y === y);
+        } while (collision);
+
+        gameState.currentFood = {x, y};
+    }
+
+    function handleKeyPress(e) {
+        if (!gameState.isRunning || gameState.gameOver) return;
+
+        const directionMap = {
+            'ArrowUp': {x: 0, y: -1},
+            'ArrowDown': {x: 0, y: 1},
+            'ArrowLeft': {x: -1, y: 0},
+            'ArrowRight': {x: 1, y: 0}
+        };
+
+        if (directionMap[e.key]) {
+            e.preventDefault();
+            const newDir = directionMap[e.key];
+            // 防止蛇反向移動
+            if (!(newDir.x === -gameState.direction.x && newDir.y === -gameState.direction.y)) {
+                gameState.nextDirection = newDir;
+            }
+        }
+    }
+
+    function update() {
+        if (gameState.isPaused) return;
+
+        // 更新方向
+        gameState.direction = gameState.nextDirection;
+
+        // 計算新頭部位置
+        const head = gameState.snake[0];
+        const newHead = {
+            x: head.x + gameState.direction.x,
+            y: head.y + gameState.direction.y
+        };
+
+        // 檢查邊界碰撞
+        const canvasGridWidth = canvas.width / GRID_SIZE;
+        const canvasGridHeight = canvas.height / GRID_SIZE;
+
+        if (newHead.x < 0 || newHead.x >= canvasGridWidth ||
+            newHead.y < 0 || newHead.y >= canvasGridHeight) {
+            endGame();
+            return;
+        }
+
+        // 檢查自身碰撞
+        if (gameState.snake.some(segment => segment.x === newHead.x && segment.y === newHead.y)) {
+            endGame();
+            return;
+        }
+
+        gameState.snake.unshift(newHead);
+
+        // 檢查是否吃到食物
+        if (newHead.x === gameState.currentFood.x && newHead.y === gameState.currentFood.y) {
+            // 吃到食物 - 字元匹配
+            gameState.charIndex++;
+            gameState.score += 10;
+
+            const currentWord = gameState.wordList[gameState.wordIndex];
+            const currentChar = currentWord.en[gameState.charIndex];
+
+            // 檢查是否完成整個單字
+            if (gameState.charIndex >= currentWord.en.length) {
+                // 單字完成！
+                gameState.completedWords++;
+                gameState.score += 50; // 完成單字的額外分數
+                playWord(currentWord);
+
+                // 移動到下一個單字
+                gameState.wordIndex++;
+                gameState.charIndex = 0;
+
+                if (gameState.wordIndex >= gameState.wordList.length) {
+                    // 所有單字都完成了！
+                    endGameWin();
+                    return;
+                }
+
+                updateWordList();
+            }
+
+            generateFood();
+        } else {
+            // 沒吃到食物 - 移除尾部
+            gameState.snake.pop();
+        }
+
+        // 更新UI
+        document.getElementById('progress').innerText = gameState.completedWords;
+        document.getElementById('score').innerText = gameState.score;
+        document.getElementById('snake-length').innerText = gameState.snake.length;
+        updateCurrentWordDisplay();
+
+        draw();
+    }
+
+    function updateWordList() {
+        const listContainer = document.getElementById('word-list');
+        listContainer.innerHTML = '';
+
+        gameState.wordList.forEach((word, index) => {
+            const div = document.createElement('div');
+            div.className = 'word-item';
+
+            if (index < gameState.completedWords) {
+                div.classList.add('completed');
+                div.innerHTML = `<span style="color: #4caf50;">✓ ${word.en}</span><div class="hint-text">${word.ch}</div>`;
+            } else if (index === gameState.wordIndex) {
+                div.style.background = '#fff9c4';
+                div.style.borderLeftColor = '#fbc02d';
+                div.innerHTML = `<strong>⟹ ${word.en}</strong><div class="hint-text">${word.ch}</div>`;
+            } else {
+                div.innerHTML = `${word.en}<div class="hint-text">${word.ch}</div>`;
+            }
+
+            listContainer.appendChild(div);
+        });
+    }
+
+    function updateCurrentWordDisplay() {
+        if (gameState.wordIndex >= gameState.wordList.length) return;
+
+        const currentWord = gameState.wordList[gameState.wordIndex];
+        const remaining = currentWord.en.substring(gameState.charIndex);
+
+        document.getElementById('current-word-display').innerText = remaining.charAt(0) || '-';
+
+        const infoDiv = document.getElementById('current-word-info');
+        infoDiv.innerHTML = `
+            <div><strong>English:</strong> ${currentWord.en}</div>
+            <div style="margin-top: 5px;"><strong>Chinese:</strong> ${currentWord.ch}</div>
+            <div style="margin-top: 8px; font-size: 0.9em;">已吃掉: <strong>${gameState.charIndex}/${currentWord.en.length}</strong></div>
+            ${currentWord.hint ? `<div style="margin-top: 5px; color: #666;"><em>提示: ${currentWord.hint}</em></div>` : ''}
+        `;
+    }
+
+    function playWord(word) {
+        // 英文發音
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+
+            const enUtterance = new SpeechSynthesisUtterance(word.en);
+            enUtterance.lang = 'en-US';
+            enUtterance.rate = 0.9;
+
+            const chUtterance = new SpeechSynthesisUtterance(word.ch);
+            chUtterance.lang = 'zh-TW';
+            chUtterance.rate = 0.9;
+
+            window.speechSynthesis.speak(enUtterance);
+            setTimeout(() => {
+                window.speechSynthesis.speak(chUtterance);
+            }, 1000);
+        }
+    }
+
+    function draw() {
+        // 清除畫布
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 繪製網格背景
+        ctx.strokeStyle = '#f0f0f0';
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i <= canvas.width; i += GRID_SIZE) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, canvas.height);
+            ctx.stroke();
+        }
+        for (let i = 0; i <= canvas.height; i += GRID_SIZE) {
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            ctx.lineTo(canvas.width, i);
+            ctx.stroke();
+        }
+
+        // 繪製蛇
+        gameState.snake.forEach((segment, index) => {
+            if (index === 0) {
+                // 蛇頭
+                ctx.fillStyle = '#667eea';
+                ctx.shadowColor = 'rgba(102, 126, 234, 0.5)';
+                ctx.shadowBlur = 10;
+            } else {
+                // 蛇身
+                ctx.fillStyle = '#99ccff';
+                ctx.shadowColor = 'transparent';
+            }
+
+            ctx.fillRect(
+                segment.x * GRID_SIZE + 1,
+                segment.y * GRID_SIZE + 1,
+                GRID_SIZE - 2,
+                GRID_SIZE - 2
+            );
+        });
+
+        ctx.shadowColor = 'transparent';
+
+        // 繪製食物（當前字元）
+        if (gameState.currentFood) {
+            const currentWord = gameState.wordList[gameState.wordIndex];
+            const currentChar = currentWord.en[gameState.charIndex];
+
+            // 繪製食物背景
+            ctx.fillStyle = '#ff6b6b';
+            ctx.beginPath();
+            ctx.arc(
+                gameState.currentFood.x * GRID_SIZE + GRID_SIZE / 2,
+                gameState.currentFood.y * GRID_SIZE + GRID_SIZE / 2,
+                GRID_SIZE / 2 - 2,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+
+            // 繪製字元
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(
+                currentChar,
+                gameState.currentFood.x * GRID_SIZE + GRID_SIZE / 2,
+                gameState.currentFood.y * GRID_SIZE + GRID_SIZE / 2
+            );
+        }
+
+        // 繪製暫停文字
+        if (gameState.isPaused) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+        }
+    }
+
+    function endGame() {
+        gameState.isRunning = false;
+        gameState.gameOver = true;
+        clearInterval(gameLoop);
+
+        document.getElementById('start-btn').disabled = false;
+        document.getElementById('category-select').disabled = false;
+        document.getElementById('difficulty').disabled = false;
+        document.getElementById('pause-btn').disabled = true;
+
+        showGameOver('遊戲結束！');
+    }
+
+    function endGameWin() {
+        gameState.isRunning = false;
+        gameState.gameOver = true;
+        clearInterval(gameLoop);
+
+        document.getElementById('start-btn').disabled = false;
+        document.getElementById('category-select').disabled = false;
+        document.getElementById('difficulty').disabled = false;
+        document.getElementById('pause-btn').disabled = true;
+
+        showGameOver('🎉 恭喜！所有單字都完成了！');
+    }
+
+    function showGameOver(title) {
+        document.getElementById('game-over-title').innerText = title;
+        document.getElementById('final-score').innerText = gameState.score;
+        document.getElementById('completed-words').innerText = gameState.completedWords;
+        document.getElementById('total-final').innerText = gameState.wordList.length;
+        document.getElementById('overlay').classList.add('show');
+        document.getElementById('game-over').classList.add('show');
+    }
+
+    // 初始化遊戲
+    window.addEventListener('load', init);
+</script>
+
+</body>
+</html>
