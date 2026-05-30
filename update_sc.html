@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 單字批量上傳系統 (含句子)</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #f4f6f9; padding: 40px 20px; display: flex; justify-content: center; }
+        .container { max-width: 800px; width: 100%; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
+        h3 { margin-top: 25px; color: #2d3748; font-size: 14px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #4a5568; }
+        select, textarea, input[type="file"] { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+        textarea { height: 220px; font-family: monospace; resize: vertical; }
+        button { padding: 12px 24px; font-size: 16px; background-color: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; margin-right: 10px; }
+        button:hover { background-color: #059669; }
+        button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+        .btn-secondary { background-color: #3b82f6; }
+        .btn-secondary:hover { background-color: #2563eb; }
+        .status { margin-top: 20px; padding: 15px; border-radius: 4px; display: none; font-weight: bold; }
+        .success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .info { background-color: #dbeafe; color: #0c4a6e; border: 1px solid #93c5fd; }
+        .format-hint { background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d; padding: 12px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; line-height: 1.6; }
+        .preview-table { margin-top: 20px; border-collapse: collapse; width: 100%; font-size: 12px; }
+        .preview-table th, .preview-table td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; }
+        .preview-table th { background-color: #f3f4f6; font-weight: bold; }
+        .preview-table tr:nth-child(even) { background-color: #f9fafb; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container">
+    <h2>🚀 Supabase 單字批量上傳系統 (含句子)</h2>
+    
+    <div class="form-group">
+        <label for="category-select">1. 選擇要匯入的單字庫分區 (category_code)</label>
+        <select id="category-select">
+            <option value="">正在從雲端載入分類清單...</option>
+        </select>
+    </div>
+
+    <div class="format-hint">
+        <strong>📋 CSV 格式說明：</strong><br>
+        每行一筆資料，包含 5 個欄位（用逗號分隔）：<br>
+        <code>"英文單字","中文翻譯","提示/發音","英文句子","中文句子"</code><br>
+        <strong>例如：</strong><br>
+        <code>"hello","你好","hə'loʊ","Hello, how are you?","你好，你好嗎？"</code><br>
+        提示、英文句子、中文句子為選填，可留空。
+    </div>
+
+    <div class="form-group">
+        <h3>📝 方式 A：直接貼上 CSV 內容</h3>
+        <textarea id="text-input" placeholder='例如：&#10;"yesterday","昨天","yes'tə"deɪ","I saw you yesterday.","我昨天看到你。"&#10;"tomorrow","明天","tə'mɑroʊ","See you tomorrow!","明天見！"'></textarea>
+    </div>
+
+    <div class="form-group">
+        <h3>📤 方式 B：上傳 CSV 檔案</h3>
+        <input type="file" id="file-input" accept=".csv,.txt" />
+        <p style="font-size: 12px; color: #6b7280; margin-top: 8px;">支援 .csv 或 .txt 檔案</p>
+    </div>
+
+    <button id="upload-btn" disabled>等候雲端分類載入中...</button>
+    <button class="btn-secondary" id="preview-btn" disabled>📊 預覽資料</button>
+    
+    <div id="preview-box"></div>
+    <div id="status-box" class="status"></div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    
+    let supabaseClient;
+    let lastParsedPayload = [];
+    
+    window.onload = async function() {
+        try {
+            if (typeof window.supabase !== 'undefined') {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                    auth: { persistSession: false }
+                });
+                
+                // 動態從資料庫載入分類
+                await loadCategoriesFromSupabase();
+            } else {
+                alert("錯誤：無法載入 Supabase SDK，請檢查網路連線。");
+            }
+        } catch(e) {
+            alert("Supabase 初始化發生錯誤：\n" + e.message);
+        }
+    };
+
+    // 🌟 核心新增：從資料庫撈取獨立 categories 表格資料並渲染選單
+    async function loadCategoriesFromSupabase() {
+        const selectEl = document.getElementById('category-select');
+        const uploadBtn = document.getElementById('upload-btn');
+        const previewBtn = document.getElementById('preview-btn');
+        
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('code, name')
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            showStatus(`無法取得單字庫分類，請確認 RLS 權限或表格是否存在。錯誤：${error.message}`, true);
+            selectEl.innerHTML = '<option value="">❌ 載入分類失敗</option>';
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            selectEl.innerHTML = '<option value="">⚠️ 雲端資料庫目前沒有任何分類</option>';
+            return;
+        }
+
+        // 清空選單並填入動態資料
+        selectEl.innerHTML = '';
+        data.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.code;
+            opt.innerText = `${cat.name} (${cat.code})`;
+            selectEl.appendChild(opt);
+        });
+
+        // 啟用上傳按鈕
+        uploadBtn.disabled = false;
+        uploadBtn.innerText = "開始上傳至 Supabase";
+        previewBtn.disabled = false;
+    }
+
+    function showStatus(message, isError = false) {
+        const box = document.getElementById('status-box');
+        box.style.display = 'block';
+        box.className = `status ${isError ? 'error' : 'success'}`;
+        box.innerHTML = message;
+    }
+
+    function showInfo(message) {
+        const box = document.getElementById('status-box');
+        box.style.display = 'block';
+        box.className = 'status info';
+        box.innerHTML = message;
+    }
+
+    function parseCSVData(textInput) {
+        const lines = textInput.split(/\r?\n/);
+        const payload = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            // 簡單的 CSV 解析（支援引號包裝）
+            const row = parseCSVLine(line);
+
+            if (row.length < 2) continue;
+
+            payload.push({
+                en: row[0] || '',
+                ch: row[1] || '',
+                hint: row[2] || null,
+                sentence_en: row[3] || null,
+                sentence_ch: row[4] || null,
+                category_code: document.getElementById('category-select').value
+            });
+        }
+
+        return payload;
+    }
+
+    function parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let insideQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+
+            if (char === '"') {
+                insideQuotes = !insideQuotes;
+            } else if (char === ',' && !insideQuotes) {
+                result.push(current.replace(/^"|"$/g, '').trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+
+        result.push(current.replace(/^"|"$/g, '').trim());
+        return result;
+    }
+
+    function showPreview(payload) {
+        const previewBox = document.getElementById('preview-box');
+        if (payload.length === 0) {
+            previewBox.innerHTML = '';
+            return;
+        }
+
+        let html = `<h3>📊 預覽前 10 筆資料 (共 ${payload.length} 筆)</h3>`;
+        html += '<table class="preview-table"><thead><tr><th>#</th><th>英文</th><th>中文</th><th>提示</th><th>英文句子</th><th>中文句子</th></tr></thead><tbody>';
+
+        for (let i = 0; i < Math.min(10, payload.length); i++) {
+            const item = payload[i];
+            html += `<tr>
+                <td>${i + 1}</td>
+                <td>${escapeHtml(item.en)}</td>
+                <td>${escapeHtml(item.ch)}</td>
+                <td>${item.hint ? escapeHtml(item.hint) : '-'}</td>
+                <td>${item.sentence_en ? escapeHtml(item.sentence_en) : '-'}</td>
+                <td>${item.sentence_ch ? escapeHtml(item.sentence_ch) : '-'}</td>
+            </tr>`;
+        }
+
+        html += '</tbody></table>';
+        previewBox.innerHTML = html;
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // 點擊預覽按鈕
+    document.getElementById('preview-btn').addEventListener('click', function() {
+        const textInput = document.getElementById('text-input').value.trim();
+        const fileInput = document.getElementById('file-input');
+
+        if (!textInput && !fileInput.files.length) {
+            alert("請先輸入 CSV 內容或上傳檔案！");
+            return;
+        }
+
+        if (textInput) {
+            const payload = parseCSVData(textInput);
+            if (payload.length === 0) {
+                alert("沒有解析出任何合法的資料，請確認格式是否正確。");
+                return;
+            }
+            lastParsedPayload = payload;
+            showPreview(payload);
+        }
+    });
+
+    // 檔案上傳處理
+    document.getElementById('file-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const content = event.target.result;
+            document.getElementById('text-input').value = content;
+            showInfo(`✅ 成功載入檔案 "${file.name}"，共 ${content.split('\n').length} 行`);
+        };
+        reader.readAsText(file);
+    });
+
+    // 上傳按鈕
+    document.getElementById('upload-btn').addEventListener('click', async function() {
+        const btn = this;
+        const textInput = document.getElementById('text-input').value.trim();
+        const categoryCode = document.getElementById('category-select').value;
+
+        if (!categoryCode) {
+            alert("請選擇有效的單字庫分區！");
+            return;
+        }
+
+        if (!textInput) {
+            alert("請先輸入單字內容或上傳檔案！");
+            return;
+        }
+
+        btn.disabled = true;
+        showStatus("正在解析資料...");
+
+        try {
+            const payload = parseCSVData(textInput);
+
+            if (payload.length === 0) {
+                throw new Error("沒有解析出任何合法的資料，請確認格式是否正確。");
+            }
+
+            showStatus(`解析成功 ${payload.length} 筆，正在寫入 Supabase...`);
+
+            // 執行 Upsert 批次寫入資料庫
+            const { error } = await supabaseClient
+                .from('words')
+                .upsert(payload, { onConflict: 'en' });
+
+            if (error) {
+                alert(`Supabase 資料庫回傳錯誤：\n代碼: ${error.code}\n訊息: ${error.message}`);
+                showStatus(`上傳失敗：${error.message}`, true);
+            } else {
+                showStatus(`🎉 成功！已成功匯入/更新 ${payload.length} 筆單字到【${categoryCode}】分區。`);
+                document.getElementById('text-input').value = "";
+                document.getElementById('file-input').value = "";
+                document.getElementById('preview-box').innerHTML = "";
+            }
+
+        } catch (err) {
+            alert(`執行過程發生錯誤：\n${err.message}`);
+            showStatus(`錯誤：${err.message}`, true);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>
