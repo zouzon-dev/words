@@ -347,4 +347,264 @@
         window.addEventListener('keydown', (e) => {
             if (currentIndex >= wordList.length || isLocking) return;
 
-            // 1. Enter 鍵：重複播放單字發
+            // 1. Enter 鍵：重複播放單字發音
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                window.speechSynthesis.cancel();
+                if(wordList[currentIndex]) speak(wordList[currentIndex].en, 'en-US');
+            }
+
+            // 2. Shift 鍵：重複播放句子發音
+            if (e.key === 'Shift') {
+                e.preventDefault();
+                window.speechSynthesis.cancel();
+                if(wordList[currentIndex]) {
+                    const targetText = wordList[currentIndex].sentence_en || wordList[currentIndex].en;
+                    speak(targetText, 'en-US');
+                }
+            }
+
+            // 3. 空白鍵：切換語音錄音開關 (排除選擇選單時)
+            if (e.key === ' ' && document.activeElement !== dbSelect) {
+                e.preventDefault();
+                toggleListening();
+            }
+        });
+    }
+
+    function toggleListening() {
+        if (!recognition || isLocking) return;
+        window.speechSynthesis.cancel(); // 開始說話前，先停止正在播放的系統語音
+
+        if (isListening) {
+            recognition.stop();
+        } else {
+            resultMsg.textContent = "";
+            recognition.start();
+        }
+    }
+
+    async function handleLogout() {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'login.html'; 
+    }
+
+    // 從資料庫加載分類
+    async function loadCategoriesFromSupabase() {
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('code, name')
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            alert(`載入單字庫分類失敗：${error.message}`);
+            return;
+        }
+
+        dbSelect.innerHTML = '';
+        if (data && data.length > 0) {
+            data.forEach(cat => {
+                const opt = document.createElement('option');
+                const opt_inner_text = `${cat.name} (${cat.code})`;
+                opt.value = cat.code;
+                opt.innerText = opt_inner_text;
+                dbSelect.appendChild(opt);
+            });
+            loadWordsFromSupabase();
+        } else {
+            dbSelect.innerHTML = '<option value="">⚠️ 雲端目前未設定任何分類</option>';
+            enWord.textContent = "請先至後台新增分類";
+            chWord.textContent = "";
+        }
+    }
+
+    // 下載單字庫
+    async function loadWordsFromSupabase() {
+        if (!supabaseClient || !currentUser) return;
+        const targetCategory = dbSelect.value;
+        if (!targetCategory) return;
+
+        enWord.textContent = "下載中...";
+        chWord.textContent = "從雲端同步數據...";
+        sentenceEn.textContent = "";
+        sentenceCh.textContent = "";
+        
+        speakEnBtn.disabled = true;
+        speakSentBtn.disabled = true;
+        speakChBtn.disabled = true;
+        micBtn.disabled = true;
+
+        const { data: wordsData, error: wordsError } = await supabaseClient
+            .from('words')
+            .select('*')
+            .eq('category_code', targetCategory);
+
+        if (wordsError) {
+            enWord.textContent = "錯誤";
+            chWord.textContent = `載入失敗: ${wordsError.message}`;
+            return;
+        }
+
+        wordList = wordsData || [];
+
+        if (wordList.length > 0) {
+            // 隨機打亂排序
+            wordList.sort(() => Math.random() - 0.5);
+            currentIndex = 0;
+            isLocking = false;
+            
+            showWord();
+        } else {
+            enWord.textContent = "空字庫";
+            chWord.textContent = "此分類目前沒有任何單字數據。";
+            sentenceEn.textContent = "";
+            sentenceCh.textContent = "";
+            progressBar.textContent = "進度: 0 / 0";
+        }
+    }
+
+    // 顯示口說題目
+    function showWord() {
+        if (currentIndex >= wordList.length) {
+            endSession();
+            return;
+        }
+
+        const currentData = wordList[currentIndex];
+        
+        progressBar.textContent = `進度: ${currentIndex + 1} / ${wordList.length}`;
+        enWord.textContent = currentData.en;     
+        chWord.textContent = currentData.ch;     
+        
+        // 判斷雲端是否有設定完整的句子（若無，則以單字作為練習目標）
+        if (currentData.sentence_en) {
+            sentenceEn.textContent = currentData.sentence_en;
+            sentenceCh.textContent = currentData.sentence_ch || '(無中文翻譯)';
+        } else {
+            sentenceEn.textContent = currentData.en;
+            sentenceCh.textContent = currentData.ch;
+        }
+        
+        recognizedTextDisplay.textContent = '尚未開始辨識...';
+        resultMsg.textContent = '';              
+        
+        // 啟用全部控制按鈕
+        speakEnBtn.disabled = false;
+        speakSentBtn.disabled = false;
+        speakChBtn.disabled = false;
+        micBtn.disabled = false;
+        
+        // 自動導引朗讀：先念單字，再念句子
+        window.speechSynthesis.cancel();
+        speak(currentData.en, 'en-US', () => {
+            const textToSpeak = currentData.sentence_en || currentData.en;
+            setTimeout(() => {
+                speak(textToSpeak, 'en-US');
+            }, 400);
+        });
+    }
+
+    // 比對口說結果 (新增：相似度計算，達 60% 即可通關)
+    function checkSpeakingInput(userSpoken) {
+        if (isLocking || currentIndex >= wordList.length) return;
+
+        const currentData = wordList[currentIndex];
+        // 設定標準目標字串（優先判定句子，若無句子則比對單字）
+        const targetText = currentData.sentence_en ? currentData.sentence_en : currentData.en;
+
+        // 進行文本標準化（轉小寫、去除常見標點符號、前後空白）
+        const normalizedUser = cleanText(userSpoken);
+        const normalizedTarget = cleanText(targetText);
+
+        // 計算相似度百分比
+        const similarity = getSimilarity(normalizedUser, normalizedTarget);
+        const accuracyPercent = Math.round(similarity * 100);
+
+        // 門檻設定為 60% (即 0.6)
+        if (similarity >= 0.6) {
+            isLocking = true;
+            resultMsg.textContent = `🎯 太棒了！發音正確率達 ${accuracyPercent}%！`;
+            resultMsg.className = "result success";
+            
+            // 慶祝音效提示過關，並自動進入下一題
+            speak("Good job!", "en-US");
+
+            setTimeout(() => {
+                currentIndex++;
+                isLocking = false;
+                showWord();
+            }, 1500);
+            
+        } else {
+            resultMsg.textContent = `❌ 聽起來不太像喔 (正確率: ${accuracyPercent}%)，請再試著念一次！`;
+            resultMsg.className = "result error";
+        }
+    }
+
+    // 格式化字串：移除標點符號
+    function cleanText(str) {
+        return str.toLowerCase()
+                  .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "")
+                  .replace(/\s+/g, " ")
+                  .trim();
+    }
+
+    // 核心演算法：計算兩個字串的字元相似度 (Levenshtein Distance)
+    function getSimilarity(s1, s2) {
+        const len1 = s1.length;
+        const len2 = s2.length;
+        const maxLen = Math.max(len1, len2);
+        if (maxLen === 0) return 1.0;
+
+        // 初始化動態規劃矩陣
+        const dp = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
+        for (let i = 0; i <= len1; i++) dp[i][0] = i;
+        for (let j = 0; j <= len2; j++) dp[0][j] = j;
+
+        for (let i = 1; i <= len1; i++) {
+            for (let j = 1; j <= len2; j++) {
+                if (s1[i - 1] === s2[j - 1]) {
+                    dp[i][j] = dp[i - 1][j - 1];
+                } else {
+                    dp[i][j] = Math.min(
+                        dp[i - 1][j] + 1,    // 刪除
+                        dp[i][j - 1] + 1,    // 插入
+                        dp[i - 1][j - 1] + 1 // 替換
+                    );
+                }
+            }
+        }
+        // 回傳 0.0 ~ 1.0 之間的相似度比例
+        return (maxLen - dp[len1][len2]) / maxLen;
+    }
+
+    // 網頁語音合成發音 (TTS)
+    function speak(text, lang, onEndCallback = null) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang;        
+            utterance.rate = 0.85; // 速度稍慢便於學習聽講     
+            if (onEndCallback) {
+                utterance.onend = onEndCallback;
+            }
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    // 結束口說練習畫面
+    function endSession() {
+        window.speechSynthesis.cancel();
+        speak("恭喜你，完成所有單字與句子的口說挑戰！", "zh-TW");
+
+        const exerciseSection = document.getElementById('exercise-section');
+        exerciseSection.innerHTML = `
+            <div class="summary-title">🎉 完美通關！</div>
+            <p style="font-size: 18px; color: #555;">您已經成功完成了本單字庫的所有口說發音特訓！</p>
+            <div style="font-size: 56px; margin: 20px 0;">🥇</div>
+            <button onclick="location.reload()" style="background-color: #3498db; margin-top: 20px; font-size: 18px;">挑戰其他字庫</button>
+        `;
+    }
+</script>
+
+</body>
+</html>
