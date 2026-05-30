@@ -200,6 +200,29 @@
         .api-config button:hover {
             background-color: #d35400;
         }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .button-group button {
+            flex: 1;
+        }
+
+        #next-btn {
+            background-color: #27ae60;
+            display: none;
+        }
+
+        #next-btn:hover {
+            background-color: #229954;
+        }
+
+        #next-btn:disabled {
+            background-color: #cbd5e1;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -220,7 +243,7 @@
     
     <label for="db-select" style="text-align: left; display: block; font-weight: bold; font-size: 14px; color: #555;">選擇單字分類 (Category)：</label>
     <select id="db-select">
-        <option value="">正在從雲端同步分類...</option>
+        <option value="">正在從雲��同步分類...</option>
     </select>
 
     <div class="instruction">
@@ -245,7 +268,10 @@
         </label>
         <textarea id="sentence-input" placeholder="請在此輸入您的英文造句...例如: I enjoy reading books in the library." disabled></textarea>
         
-        <button id="submit-btn" disabled style="background-color: #3498db; margin-top: 15px;">✓ 提交檢查</button>
+        <div class="button-group">
+            <button id="submit-btn" disabled style="background-color: #3498db;">✓ 提交檢查</button>
+            <button id="next-btn" style="display: none;">➜ 下一題</button>
+        </div>
 
         <div class="result" id="result-msg"></div>
     </div>
@@ -262,6 +288,7 @@
     let currentIndex = 0;
     let isChecking = false;
     let geminiApiKey = '';
+    let lastCheckResult = null;
 
     const appContainer = document.getElementById('app-container');
     const dbSelect = document.getElementById('db-select');
@@ -272,6 +299,7 @@
     const speakEnBtn = document.getElementById('speak-en-btn');
     const speakChBtn = document.getElementById('speak-ch-btn');
     const submitBtn = document.getElementById('submit-btn');
+    const nextBtn = document.getElementById('next-btn');
     const resultMsg = document.getElementById('result-msg');
     const apiStatusSpan = document.getElementById('api-status');
     const setApiKeyBtn = document.getElementById('set-api-key-btn');
@@ -321,6 +349,7 @@
         });
 
         submitBtn.addEventListener('click', checkSentence);
+        nextBtn.addEventListener('click', goToNextQuestion);
 
         // 快捷鍵：按 Enter 鍵重複發英文音
         window.addEventListener('keydown', (e) => {
@@ -404,6 +433,7 @@
         speakEnBtn.disabled = true;
         speakChBtn.disabled = true;
         submitBtn.disabled = true;
+        nextBtn.style.display = 'none';
 
         const { data: wordsData, error: wordsError } = await supabaseClient
             .from('words')
@@ -453,6 +483,12 @@
         resultMsg.className = 'result';
         sentenceInput.focus();
         
+        // 隱藏下一題按鈕，顯示提交按鈕
+        submitBtn.style.display = 'block';
+        nextBtn.style.display = 'none';
+        sentenceInput.disabled = false;
+        submitBtn.disabled = false;
+        
         // 自動朗讀
         speak(currentData.en, 'en-US', () => {
             speak(currentData.ch, 'zh-TW');
@@ -479,41 +515,55 @@
         isChecking = true;
         sentenceInput.disabled = true;
         submitBtn.disabled = true;
+        nextBtn.style.display = 'none';
 
         resultMsg.textContent = "🤖 AI 正在檢查中，請稍候...";
         resultMsg.className = 'result checking';
 
         try {
             const response = await callGeminiAPI(userSentence, targetWord);
+            lastCheckResult = response;
             
             if (response.isCorrect) {
                 resultMsg.innerHTML = `✅ <strong>太棒了！完全正確！</strong><br><br>${response.explanation}`;
                 resultMsg.className = 'result success';
-
-                setTimeout(() => {
-                    currentIndex++;
-                    isChecking = false;
-                    sentenceInput.disabled = false;
-                    submitBtn.disabled = false;
-                    showWord();
-                }, 2000);
             } else {
                 resultMsg.innerHTML = `❌ <strong>需要改進</strong><br><br><strong>問題：</strong> ${response.issue}<br><strong>建議：</strong> ${response.suggestion}`;
                 resultMsg.className = 'result error';
-
-                setTimeout(() => {
-                    isChecking = false;
-                    sentenceInput.disabled = false;
-                    submitBtn.disabled = false;
-                    sentenceInput.focus();
-                }, 1000);
             }
+
+            // 顯示下一題按鈕
+            submitBtn.style.display = 'none';
+            nextBtn.style.display = 'block';
+            sentenceInput.disabled = true;
+            
+            isChecking = false;
         } catch (error) {
             resultMsg.textContent = `❌ API 呼叫失敗：${error.message}`;
             resultMsg.className = 'result error';
             isChecking = false;
             sentenceInput.disabled = false;
             submitBtn.disabled = false;
+            nextBtn.style.display = 'none';
+        }
+    }
+
+    function goToNextQuestion() {
+        if (lastCheckResult && lastCheckResult.isCorrect) {
+            // 正確的話，進入下一題
+            currentIndex++;
+            isChecking = false;
+            showWord();
+        } else {
+            // 錯誤的話，清空輸入框讓用戶重新輸入
+            sentenceInput.value = '';
+            sentenceInput.disabled = false;
+            submitBtn.disabled = false;
+            submitBtn.style.display = 'block';
+            nextBtn.style.display = 'none';
+            resultMsg.textContent = '';
+            resultMsg.className = 'result';
+            sentenceInput.focus();
         }
     }
 
