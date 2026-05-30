@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英文造句練習器 (Gemini AI 檢查版)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 700px;
+            width: 100%;
+            display: none;
+        }
+        
+        .user-info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #e2e8f0;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .btn-logout {
+            background-color: #ef4444;
+            padding: 4px 10px;
+            font-size: 12px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-logout:hover {
+            background-color: #dc2626;
+        }
+
+        select, textarea, input, button {
+            font-size: 16px;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            width: 100%;
+            box-sizing: border-box;
+            outline: none;
+            font-family: inherit;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:disabled {
+            background-color: #cbd5e1;
+            cursor: not-allowed;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .word-display {
+            font-size: 42px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 20px 0 10px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+
+        .ch-display {
+            font-size: 18px;
+            color: #7f8c8d;
+            margin-bottom: 15px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .audio-btn {
+            background-color: #008CBA;
+            margin: 0;
+            flex: 1;
+        }
+
+        .audio-btn:hover {
+            background-color: #007B9A;
+        }
+        
+        .progress-text {
+            font-size: 14px;
+            color: #95a5a6;
+            margin-bottom: 10px;
+        }
+
+        .result {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            line-height: 1.6;
+            min-height: 50px;
+            display: none;
+        }
+
+        .success {
+            display: block;
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            display: block;
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .info {
+            display: block;
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .checking {
+            display: block;
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        
+        .summary-title {
+            font-size: 28px;
+            color: #27ae60;
+            margin-bottom: 15px;
+        }
+
+        .instruction {
+            background-color: #e8f4f8;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #2c3e50;
+            border-left: 4px solid #3498db;
+        }
+
+        .api-config {
+            background-color: #f0f0f0;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        .api-config button {
+            margin: 5px 0;
+            background-color: #e67e22;
+        }
+
+        .api-config button:hover {
+            background-color: #d35400;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .button-group button {
+            flex: 1;
+        }
+
+        #next-btn {
+            background-color: #27ae60;
+            display: none;
+        }
+
+        #next-btn:hover {
+            background-color: #229954;
+        }
+
+        #next-btn:disabled {
+            background-color: #cbd5e1;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container" id="app-container">
+    <h2>✍️ 英文造句練習 (Gemini AI 檢查版)</h2>
+    
+    <div id="user-bar" class="user-info-bar">
+        <span>👤 學生：<span id="user-email-display">載入中...</span></span>
+        <button id="logout-btn" class="btn-logout">登出</button>
+    </div>
+
+    <div class="api-config">
+        <button id="set-api-key-btn" style="background-color: #9b59b6;">🔐 設定 Gemini API 金鑰</button>
+        <span id="api-status" style="font-size: 12px; color: #666;"> 未設定</span>
+    </div>
+    
+    <label for="db-select" style="text-align: left; display: block; font-weight: bold; font-size: 14px; color: #555;">選擇單字分類 (Category)：</label>
+    <select id="db-select">
+        <option value="">正在從雲端同步分類...</option>
+    </select>
+
+    <div class="instruction">
+        📝 <strong>練習說明：</strong>請將下方的英文單字使用在您的造句中，完成後點擊「提交檢查」，AI 將檢驗您的造句是否正確。
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+    <div id="exercise-section">
+        <div class="progress-text" id="progress-bar">進度: 0 / 0</div>
+
+        <div class="word-display" id="en-word">Loading...</div>
+        <div class="ch-display" id="ch-word">載入中...</div>
+        
+        <div class="btn-group">
+            <button class="audio-btn" id="speak-en-btn" disabled>🔊 英文發音 (Enter)</button>
+            <button class="audio-btn" id="speak-ch-btn" style="background-color: #9b59b6;" disabled>🔊 中文發音</button>
+        </div>
+        
+        <label style="text-align: left; display: block; font-weight: bold; font-size: 14px; color: #555; margin-top: 15px;">
+            📝 請造句包含上方單字：
+        </label>
+        <textarea id="sentence-input" placeholder="請在此輸入您的英文造句...例如: I enjoy reading books in the library." disabled></textarea>
+        
+        <div class="button-group">
+            <button id="submit-btn" disabled style="background-color: #3498db;">✓ 提交檢查</button>
+            <button id="next-btn" style="display: none;">➜ 下一題</button>
+        </div>
+
+        <div class="result" id="result-msg"></div>
+    </div>
+</div>
+
+<script>
+    // Supabase 設定
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    
+    let supabaseClient = null;
+    let currentUser = null;
+    let wordList = [];
+    let currentIndex = 0;
+    let isChecking = false;
+    let geminiApiKey = '';
+    let lastCheckResult = null;
+
+    const appContainer = document.getElementById('app-container');
+    const dbSelect = document.getElementById('db-select');
+    const progressBar = document.getElementById('progress-bar');
+    const enWord = document.getElementById('en-word');
+    const chWord = document.getElementById('ch-word');
+    const sentenceInput = document.getElementById('sentence-input');
+    const speakEnBtn = document.getElementById('speak-en-btn');
+    const speakChBtn = document.getElementById('speak-ch-btn');
+    const submitBtn = document.getElementById('submit-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const resultMsg = document.getElementById('result-msg');
+    const apiStatusSpan = document.getElementById('api-status');
+    const setApiKeyBtn = document.getElementById('set-api-key-btn');
+
+    window.onload = async function() {
+        if (typeof window.supabase === 'undefined') {
+            alert("⚠️ 系統載入失敗！您的瀏覽器攔截了資料庫連線。");
+            return;
+        }
+
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // 檢查使用者登入狀態
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && session.user) {
+            currentUser = session.user;
+            document.getElementById('user-email-display').innerText = currentUser.email;
+            appContainer.style.display = 'block';
+            
+            // 載入已儲存的 API 金鑰
+            loadApiKey();
+            
+            bindEvents();
+            // 優先加載雲端分類
+            await loadCategoriesFromSupabase();
+        } else {
+            // 未登入強制踢回登入頁面
+            window.location.href = 'login.html';
+        }
+    };
+
+    function bindEvents() {
+        document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        dbSelect.addEventListener('change', loadWordsFromSupabase);
+        setApiKeyBtn.addEventListener('click', promptApiKey);
+        
+        speakEnBtn.addEventListener('click', () => {
+            window.speechSynthesis.cancel();
+            if(wordList[currentIndex]) speak(wordList[currentIndex].en, 'en-US');
+            sentenceInput.focus();
+        });
+
+        speakChBtn.addEventListener('click', () => {
+            window.speechSynthesis.cancel();
+            if(wordList[currentIndex]) speak(wordList[currentIndex].ch, 'zh-TW');
+            sentenceInput.focus();
+        });
+
+        submitBtn.addEventListener('click', checkSentence);
+        nextBtn.addEventListener('click', goToNextQuestion);
+
+        // 快捷鍵：按 Enter 鍵重複發英文音
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey && currentIndex < wordList.length && !isChecking) {
+                checkSentence();
+            } else if (e.key === 'Enter' && currentIndex < wordList.length && !isChecking) {
+                window.speechSynthesis.cancel();
+                speak(wordList[currentIndex].en, 'en-US');
+            }
+        });
+    }
+
+    function promptApiKey() {
+        let key = prompt("請輸入您的 Gemini API 金鑰：\n(這只會儲存在您的瀏覽器中，非常安全)");
+        if (key && key.trim() !== "") {
+            geminiApiKey = key.trim();
+            localStorage.setItem('GEMINI_KEY', geminiApiKey);
+            updateApiStatus();
+            alert("✓ API 金鑰已儲存！");
+        }
+    }
+
+    function loadApiKey() {
+        geminiApiKey = localStorage.getItem('GEMINI_KEY') || '';
+        updateApiStatus();
+    }
+
+    function updateApiStatus() {
+        if (geminiApiKey) {
+            apiStatusSpan.textContent = `✓ 已設定 (${geminiApiKey.substring(0, 10)}...)`;
+            apiStatusSpan.style.color = '#27ae60';
+        } else {
+            apiStatusSpan.textContent = '❌ 未設定';
+            apiStatusSpan.style.color = '#e74c3c';
+        }
+    }
+
+    async function handleLogout() {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'login.html'; 
+    }
+
+    // 從資料庫撈取動態分類
+    async function loadCategoriesFromSupabase() {
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('code, name')
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            alert(`載入單字庫分類失敗：${error.message}`);
+            return;
+        }
+
+        dbSelect.innerHTML = '';
+        if (data && data.length > 0) {
+            data.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.code;
+                opt.innerText = `${cat.name} (${cat.code})`;
+                dbSelect.appendChild(opt);
+            });
+            // 自動加載第一個分類的單字
+            loadWordsFromSupabase();
+        } else {
+            dbSelect.innerHTML = '<option value="">⚠️ 雲端目前未設定任何分類</option>';
+            enWord.textContent = "請先至後台新增分類";
+            chWord.textContent = "";
+        }
+    }
+
+    // 從資料庫撈取單字並打亂排序
+    async function loadWordsFromSupabase() {
+        if (!supabaseClient || !currentUser) return;
+        const targetCategory = dbSelect.value;
+        if (!targetCategory) return;
+
+        enWord.textContent = "下載中...";
+        chWord.textContent = "從雲端同步單字...";
+        sentenceInput.disabled = true;
+        speakEnBtn.disabled = true;
+        speakChBtn.disabled = true;
+        submitBtn.disabled = true;
+        nextBtn.style.display = 'none';
+
+        const { data: wordsData, error: wordsError } = await supabaseClient
+            .from('words')
+            .select('*')
+            .eq('category_code', targetCategory);
+
+        if (wordsError) {
+            enWord.textContent = "錯誤";
+            chWord.textContent = `載入失敗: ${wordsError.message}`;
+            return;
+        }
+
+        wordList = wordsData || [];
+
+        if (wordList.length > 0) {
+            // 隨機排序單字
+            wordList.sort(() => Math.random() - 0.5);
+            currentIndex = 0;
+            
+            sentenceInput.disabled = false;
+            speakEnBtn.disabled = false;
+            speakChBtn.disabled = false;
+            submitBtn.disabled = false;
+            showWord();
+        } else {
+            enWord.textContent = "空字庫";
+            chWord.textContent = "此分類目前沒有單字。";
+            progressBar.textContent = "進度: 0 / 0";
+        }
+    }
+
+    // 顯示題目
+    function showWord() {
+        if (currentIndex >= wordList.length) {
+            endSession();
+            return;
+        }
+
+        const currentData = wordList[currentIndex];
+        
+        progressBar.textContent = `進度: ${currentIndex + 1} / ${wordList.length}`;
+        enWord.textContent = currentData.en;     
+        chWord.textContent = currentData.ch;     
+        
+        sentenceInput.value = '';                    
+        resultMsg.textContent = '';
+        resultMsg.className = 'result';
+        sentenceInput.focus();
+        
+        // 隱藏下一題按鈕，顯示提交按鈕
+        submitBtn.style.display = 'block';
+        nextBtn.style.display = 'none';
+        sentenceInput.disabled = false;
+        submitBtn.disabled = false;
+        
+        // 自動朗讀
+        speak(currentData.en, 'en-US', () => {
+            speak(currentData.ch, 'zh-TW');
+        });
+    }
+
+    async function checkSentence() {
+        if (isChecking || currentIndex >= wordList.length) return;
+        
+        if (!geminiApiKey) {
+            resultMsg.textContent = "❌ 請先設定 Gemini API 金鑰！";
+            resultMsg.className = 'result error';
+            return;
+        }
+
+        const userSentence = sentenceInput.value.trim();
+        if (!userSentence) {
+            resultMsg.textContent = "❌ 請先輸入您的造句！";
+            resultMsg.className = 'result error';
+            return;
+        }
+
+        const targetWord = wordList[currentIndex].en;
+        isChecking = true;
+        sentenceInput.disabled = true;
+        submitBtn.disabled = true;
+        nextBtn.style.display = 'none';
+
+        resultMsg.textContent = "🤖 AI 正在檢查中，請稍候...";
+        resultMsg.className = 'result checking';
+
+        try {
+            const response = await callGeminiAPI(userSentence, targetWord);
+            lastCheckResult = response;
+            
+            if (response.isCorrect) {
+                resultMsg.innerHTML = `✅ <strong>太棒了！完全正確！</strong><br><br>${response.explanation}`;
+                resultMsg.className = 'result success';
+            } else {
+                resultMsg.innerHTML = `❌ <strong>需要改進</strong><br><br><strong>問題：</strong> ${response.issue}<br><strong>建議：</strong> ${response.suggestion}`;
+                resultMsg.className = 'result error';
+            }
+
+            // 顯示下一題按鈕
+            submitBtn.style.display = 'none';
+            nextBtn.style.display = 'block';
+            sentenceInput.disabled = true;
+            
+            isChecking = false;
+        } catch (error) {
+            resultMsg.textContent = `❌ API 呼叫失敗：${error.message}`;
+            resultMsg.className = 'result error';
+            isChecking = false;
+            sentenceInput.disabled = false;
+            submitBtn.disabled = false;
+            nextBtn.style.display = 'none';
+        }
+    }
+
+    function goToNextQuestion() {
+        if (lastCheckResult && lastCheckResult.isCorrect) {
+            // 正確的話，進入下一題
+            currentIndex++;
+            isChecking = false;
+            showWord();
+        } else {
+            // 錯誤的話，清空輸入框讓用戶重新輸入
+            sentenceInput.value = '';
+            sentenceInput.disabled = false;
+            submitBtn.disabled = false;
+            submitBtn.style.display = 'block';
+            nextBtn.style.display = 'none';
+            resultMsg.textContent = '';
+            resultMsg.className = 'result';
+            sentenceInput.focus();
+        }
+    }
+
+    async function callGeminiAPI(sentence, targetWord) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`;
+
+        const prompt = `你是一個英文教學助手。請檢查以下的英文造句是否正確並包含指定的單字。
+
+指定單字：${targetWord}
+學生造句：${sentence}
+
+請用繁體中文回應，格式如下（重要：必須完全按照此格式）：
+如果造句正確：
+CORRECT|完整、流暢的解釋為什麼這個造句是正確的，包括文法、用法等。
+
+如果造句有問題：
+INCORRECT|具體問題描述（例如：缺少目標單字、文法錯誤、時態不對）|改進建議（提供如何修改的建議）
+
+請確保回應嚴格按照上述格式，用豎線 | 分隔。`;
+
+        const data = {
+            contents: [{
+                parts: [{ text: prompt }]
+            }]
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            throw new Error(`API 回傳錯誤 (${response.status})`);
+        }
+
+        const result = await response.json();
+
+        if (result.error) {
+            throw new Error(result.error.message || '未知錯誤');
+        }
+
+        const reply = result.candidates[0].content.parts[0].text.trim();
+        const [status, ...messages] = reply.split('|');
+        const cleanStatus = status.trim(); // 清除多餘空白確保比對精準
+
+        // 使用嚴格相等 (===) 判斷，避免 'INCORRECT' 被誤判為包含 'CORRECT'
+        if (cleanStatus === 'CORRECT') {
+            return {
+                isCorrect: true,
+                explanation: messages.join('|').trim() || '恭喜！您的造句完全正確。'
+            };
+        } else if (cleanStatus === 'INCORRECT') {
+            return {
+                isCorrect: false,
+                issue: messages[0]?.trim() || '造句有誤',
+                suggestion: messages[1]?.trim() || '請再試一次'
+            };
+        } else {
+            // 防呆機制：若 AI 回傳了未預期的格式
+            return {
+                isCorrect: false,
+                issue: 'AI 回應格式無法辨識',
+                suggestion: `原始回應: ${reply}`
+            };
+        }
+    }
+
+    // 瀏覽器發音
+    function speak(text, lang, onEndCallback = null) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang;        
+            utterance.rate = 0.9;         
+            if (onEndCallback) {
+                utterance.onend = onEndCallback;
+            }
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    // 結束畫面渲染
+    function endSession() {
+        window.speechSynthesis.cancel();
+        speak("恭喜你，完成所有造句練習！", "zh-TW");
+
+        const exerciseSection = document.getElementById('exercise-section');
+        exerciseSection.innerHTML = `
+            <div class="summary-title">🎉 練習結束！</div>
+            <p style="font-size: 18px; color: #555;">你已經成功完成這個字庫的所有造句練習！</p>
+            <div style="font-size: 48px; margin: 20px 0;">🏆</div>
+            <button onclick="location.reload()" style="background-color: #3498db; margin-top: 20px;">再練習一次</button>
+        `;
+    }
+</script>
+
+</body>
+</html>
