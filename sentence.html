@@ -243,7 +243,7 @@
     
     <label for="db-select" style="text-align: left; display: block; font-weight: bold; font-size: 14px; color: #555;">選擇單字分類 (Category)：</label>
     <select id="db-select">
-        <option value="">正在從雲��同步分類...</option>
+        <option value="">正在從雲端同步分類...</option>
     </select>
 
     <div class="instruction">
@@ -527,16 +527,20 @@
             if (response.isCorrect) {
                 resultMsg.innerHTML = `✅ <strong>太棒了！完全正確！</strong><br><br>${response.explanation}`;
                 resultMsg.className = 'result success';
+                // 正確的話，顯示下一題按鈕
+                submitBtn.style.display = 'none';
+                nextBtn.style.display = 'block';
+                nextBtn.textContent = '➜ 下一題';
             } else {
                 resultMsg.innerHTML = `❌ <strong>需要改進</strong><br><br><strong>問題：</strong> ${response.issue}<br><strong>建議：</strong> ${response.suggestion}`;
                 resultMsg.className = 'result error';
+                // 錯誤的話，顯示重新練習按鈕
+                submitBtn.style.display = 'none';
+                nextBtn.style.display = 'block';
+                nextBtn.textContent = '🔄 重新練習';
             }
 
-            // 顯示下一題按鈕
-            submitBtn.style.display = 'none';
-            nextBtn.style.display = 'block';
             sentenceInput.disabled = true;
-            
             isChecking = false;
         } catch (error) {
             resultMsg.textContent = `❌ API 呼叫失敗：${error.message}`;
