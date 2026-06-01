@@ -193,6 +193,9 @@
     let isReviewMode = false; 
     let isLocking = false;    
 
+    // 🌟 新增：儲存本次測驗開始時間的全域變數
+    let quizStartTime = null;
+
     window.onload = async function() {
         if (typeof window.supabase === 'undefined') {
             alert("⚠️ 系統載入失敗！您的瀏覽器攔截了資料庫連線。");
@@ -236,7 +239,7 @@
         window.location.href = 'login.html'; 
     }
 
-    // 🌟 核心新增：從資料庫撈取動態分類，並寫入下拉選單中
+    // 🌟 從資料庫撈取動態分類，並寫入下拉選單中
     async function loadCategoriesFromSupabase() {
         const selectEl = document.getElementById('db-select');
         const { data, error } = await supabaseClient
@@ -302,6 +305,10 @@
         failedWords = [];
         isReviewMode = false;
         document.getElementById('review-badge').style.display = 'none';
+        
+        // 🌟 新增：新一輪測驗開始，標記開始時間
+        quizStartTime = new Date();
+
         initQuiz();
     }
 
@@ -394,6 +401,11 @@
             }, 2000);
         } else {
             wrongCount++;
+
+            // 🌟 新增：只要答錯（不管是第一次錯還是累積滿三次），立刻記錄至錯題清單，以對接 history.html
+            const alreadyExists = failedWords.some(item => item.id === currentWord.id);
+            if (!alreadyExists) failedWords.push(currentWord);
+
             if (wrongCount < 3) {
                 resultMsg.className = "result error";
                 resultMsg.innerText = `❌ 錯誤！請再試一次（已答錯 ${wrongCount} 次，滿 3 次將公佈答案）`;
@@ -407,9 +419,6 @@
                 resultMsg.className = "result error";
                 resultMsg.innerText = `❌ 答錯滿 3 次。正確答案是：【${correctAnswer}】`;
                 speak(correctAnswer);
-
-                const alreadyExists = failedWords.some(item => item.en.toLowerCase() === correctAnswer.toLowerCase());
-                if (!alreadyExists) failedWords.push(currentWord);
 
                 updateScoreBoard();
                 setTimeout(() => {
@@ -432,7 +441,8 @@
         document.getElementById('score').innerText = `即時正確率：${rate}%`;
     }
 
-    function showSummary() {
+    // 🌟 在結算畫面渲染前，同步將本次作答成績與錯題陣列上傳雲端資料庫
+    async function showSummary() {
         const quizSection = document.getElementById('quiz-section');
         
         window.startReviewMode = startReviewMode;
@@ -440,6 +450,29 @@
 
         let titleText = isReviewMode ? "🎉 錯題本複習完成！" : "🎉 本卷測驗完成！";
         let rate = wordList.length === 0 ? 0 : Math.round((correctCount / wordList.length) * 100);
+
+        // 🌟 新增：打包數據同步回傳至 `quiz_logs`
+        if (!isReviewMode && wordList.length > 0 && supabaseClient) {
+            const quizEndTime = new Date();
+            const targetCategory = document.getElementById('db-select').value;
+            
+            const { error } = await supabaseClient
+                .from('quiz_logs')
+                .insert({
+                    user_id: currentUser.id,
+                    quiz_type: 'spelling',
+                    category_code: targetCategory,
+                    total_questions: wordList.length,
+                    correct_answers: correctCount,
+                    accuracy_rate: rate,
+                    start_time: quizStartTime ? quizStartTime.toISOString() : quizEndTime.toISOString(),
+                    end_time: quizEndTime.toISOString(),
+                    wrong_word_ids: failedWords.map(w => w.id) // 🌟 核心：上傳所有錯題的 ID 陣列
+                });
+                
+            if (error) console.error("歷史紀錄連線寫入失敗:", error.message);
+        }
+
         let htmlContent = `
             <h3 class="success">${titleText}</h3>
             <p>得分表現：答對 ${correctCount} 題 / 共 ${wordList.length} 題</p>
@@ -458,6 +491,8 @@
         }
 
         htmlContent += `<button onclick="window.loadWordsFromSupabase()">重新選題挑戰</button>`;
+        htmlContent += `<a href="history.html" style="display:inline-block; margin-top:15px; margin-left:10px; padding:12px 20px; background-color:#7f8c8d; color:white; text-decoration:none; border-radius:4px; font-size:16px; font-weight:bold;">📊 查看歷史與錯題分析</a>`;
+        
         quizSection.innerHTML = htmlContent;
     }
 
