@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英文句子重組挑戰 (語音提示版)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            padding: 30px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .control-panel {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+        }
+
+        .flex-grow {
+            flex-grow: 1;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #475569;
+            font-size: 14px;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 15px;
+            background-color: white;
+            cursor: pointer;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #4f46e5;
+            color: white;
+        }
+
+        button:hover:not(:disabled) {
+            background: #4338ca;
+            transform: translateY(-1px);
+        }
+
+        /* 提示按鈕專用樣式 */
+        .hint-btn {
+            background: #0ea5e9;
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 6px;
+        }
+
+        .hint-btn:hover {
+            background: #0284c7;
+        }
+
+        /* 核心單字顯示區 */
+        .target-word-banner {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .target-word-en {
+            font-size: 26px;
+            font-weight: 800;
+            color: #1e40af;
+        }
+
+        .target-word-ch {
+            font-size: 16px;
+            color: #60a5fa;
+            font-weight: 600;
+        }
+
+        /* 遊戲主區域 */
+        .game-zone {
+            display: none;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 30px;
+            margin-top: 20px;
+        }
+
+        .quiz-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .quiz-progress {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .hint-ch {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 30px;
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid #4f46e5;
+        }
+
+        /* 放置框與單字卡容器 */
+        .slots-container, .words-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 30px;
+            min-height: 65px;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        /* 上方：待選單字卡區 */
+        .words-container {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            justify-content: center;
+        }
+
+        /* 下方：置放答案空格區 */
+        .slots-container {
+            background-color: #fafafa;
+            border: 2px dashed #cbd5e1;
+        }
+
+        .word-slot {
+            min-width: 90px;
+            height: 45px;
+            border-bottom: 3px solid #94a3b8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 10px;
+            transition: all 0.2s;
+        }
+
+        .word-slot.drag-over {
+            background-color: #e0e7ff;
+            border-bottom-color: #4f46e5;
+        }
+
+        .drag-word {
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: grab;
+            font-size: 16px;
+            font-weight: 500;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            user-select: none;
+        }
+
+        .drag-word:active {
+            cursor: grabbing;
+        }
+
+        .drag-word.dragging {
+            opacity: 0.4;
+        }
+
+        /* 答案反饋 */
+        .result-message {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 700;
+            min-height: 28px;
+            margin-top: 15px;
+        }
+
+        .success-text {
+            color: #16a34a;
+            animation: bounce 0.5s ease infinite alternate;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-5px); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+            font-size: 16px;
+        }
+
+        .alert {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+            display: none;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧩 英文句子重組挑戰</h1>
+            <div class="user-info">
+                <span>👤 <span id="user-email">載入中...</span></span>
+            </div>
+        </div>
+
+        <div class="content">
+            <div id="alert-box" class="alert"></div>
+
+            <div class="control-panel">
+                <div class="flex-grow">
+                    <label for="category-select">選擇遊玩單字分類</label>
+                    <select id="category-select">
+                        <option value="">載入中...</option>
+                    </select>
+                </div>
+                <button id="start-game-btn">🎯 開始挑戰</button>
+            </div>
+
+            <div id="game-zone" class="game-zone">
+                <div class="quiz-header-row">
+                    <div class="quiz-progress" id="quiz-progress">題目： 0 / 0</div>
+                    <button id="speak-hint-btn" class="hint-btn">🔊 聽整句發音提示</button>
+                </div>
+                
+                <div class="target-word-banner">
+                    <div>
+                        <span style="font-size: 14px; color: #4b5563; display:block;">核心學習單字：</span>
+                        <span class="target-word-en" id="target-word-en">Word</span>
+                    </div>
+                    <div class="target-word-ch" id="target-word-ch">意思</div>
+                </div>
+
+                <div class="hint-ch" id="hint-ch">中文翻譯讀取中...</div>
+                
+                <label>可拖曳的單字：</label>
+                <div class="words-container" id="words-container"></div>
+
+                <label>請將上方單字拖曳至下方空格內：</label>
+                <div class="slots-container" id="slots-container"></div>
+
+                <div class="result-message" id="result-message"></div>
+            </div>
+
+            <div id="empty-state" class="empty-state">
+                請先選擇上方分類，並點擊「開始挑戰」吧！
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== Supabase 設定 ====================
+        const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+       
+        let supabaseClient = null;
+        let currentUser = null;
+        
+        // ==================== 遊戲狀態 ====================
+        let quizWords = [];        
+        let currentIndex = 0;     
+        let targetSentenceWords = []; 
+        let rawFullSentence = "";   
+        let draggedElement = null; 
+
+        window.onload = async function () {
+            if (typeof window.supabase === 'undefined') {
+                showError('系統載入失敗！無法連線至資料庫。');
+                return;
+            }
+
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session && session.user) {
+                currentUser = session.user;
+                document.getElementById('user-email').innerText = currentUser.email;
+                loadCategories();
+                bindEvents();
+            } else {
+                window.location.href = 'login.html';
+            }
+        };
+
+        function bindEvents() {
+            document.getElementById('start-game-btn').addEventListener('click', startQuizGame);
+            // 綁定發音提示按鈕事件
+            document.getElementById('speak-hint-btn').addEventListener('click', () => {
+                if (rawFullSentence) {
+                    speakText(rawFullSentence);
+                }
+            });
+        }
+
+        async function loadCategories() {
+            const selectEl = document.getElementById('category-select');
+            const { data, error } = await supabaseClient
+                .from('categories')
+                .select('code, name')
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                showError(`載入分類失敗: ${error.message}`);
+                return;
+            }
+
+            selectEl.innerHTML = '<option value="">請選擇分類...</option>';
+            if (data && data.length > 0) {
+                data.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat.code;
+                    opt.innerText = `${cat.name} (${cat.code})`;
+                    selectEl.appendChild(opt);
+                });
+            }
+        }
+
+        async function startQuizGame() {
+            const categoryCode = document.getElementById('category-select').value;
+            if (!categoryCode) {
+                alert('請先選擇一個單字分類！');
+                return;
+            }
+
+            const { data, error } = await supabaseClient
+                .from('words')
+                .select('*')
+                .eq('category_code', categoryCode)
+                .not('sentence_en', 'is', null)
+                .order('id', { ascending: true });
+
+            if (error) {
+                showError(`載入題目失敗: ${error.message}`);
+                return;
+            }
+
+            quizWords = (data || []).filter(w => w.sentence_en.trim() !== '' && w.sentence_ch.trim() !== '');
+
+            if (quizWords.length === 0) {
+                alert('此分類中沒有可玩的生成句子例句！');
+                return;
+            }
+
+            quizWords.sort(() => Math.random() - 0.5);
+            currentIndex = 0;
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('game-zone').style.display = 'block';
+            
+            loadQuestion();
+        }
+
+        // ==================== 載入題目 ====================
+        function loadQuestion() {
+            if (currentIndex >= quizWords.length) {
+                document.getElementById('game-zone').style.display = 'none';
+                document.getElementById('empty-state').style.display = 'block';
+                document.getElementById('empty-state').innerHTML = '🎉 恭喜！您已完成了此分類的所有語音句子挑戰！';
+                return;
+            }
+
+            const currentQuiz = quizWords[currentIndex];
+            document.getElementById('quiz-progress').innerText = `題目： ${currentIndex + 1} / ${quizWords.length}`;
+            
+            document.getElementById('target-word-en').innerText = currentQuiz.en;
+            document.getElementById('target-word-ch').innerText = currentQuiz.ch;
+            
+            document.getElementById('hint-ch').innerText = `💡 中文提示：${currentQuiz.sentence_ch}`;
+            document.getElementById('result-message').innerHTML = '';
+
+            // 儲存原始句子供發音提示與最後全對朗讀使用
+            rawFullSentence = currentQuiz.sentence_en;
+
+            const cleanSentence = currentQuiz.sentence_en.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").trim();
+            targetSentenceWords = cleanSentence.split(/\s+/);
+
+            let scrambledWords = [...targetSentenceWords];
+            while (scrambledWords.join(' ') === targetSentenceWords.join(' ') && scrambledWords.length > 1) {
+                scrambledWords.sort(() => Math.random() - 0.5);
+            }
+
+            // 生成下方答案空格 (Slots)
+            const slotsContainer = document.getElementById('slots-container');
+            slotsContainer.innerHTML = '';
+            targetSentenceWords.forEach((_, index) => {
+                const slot = document.createElement('div');
+                slot.className = 'word-slot';
+                slot.dataset.slotIndex = index;
+                
+                slot.addEventListener('dragover', dragOver);
+                slot.addEventListener('dragenter', dragEnter);
+                slot.addEventListener('dragleave', dragLeave);
+                slot.addEventListener('drop', dropToSlot);
+                
+                slotsContainer.appendChild(slot);
+            });
+
+            // 生成上方待選單字卡 (Words Pool)
+            const wordsContainer = document.getElementById('words-container');
+            wordsContainer.innerHTML = '';
+            scrambledWords.forEach((word, index) => {
+                const wordCard = document.createElement('div');
+                wordCard.className = 'drag-word';
+                wordCard.draggable = true;
+                wordCard.innerText = word;
+                wordCard.id = `word-${currentIndex}-${index}`;
+
+                wordCard.addEventListener('dragstart', dragStart);
+                wordCard.addEventListener('dragend', dragEnd);
+
+                wordsContainer.appendChild(wordCard);
+            });
+
+            wordsContainer.addEventListener('dragover', dragOver);
+            wordsContainer.addEventListener('drop', dropToPool);
+        }
+
+        // ==================== 語音 TTS 核心功能 ====================
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // 播放新語音前先切斷舊語音，避免堆疊
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US'; 
+                utterance.rate = 0.9;     
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // ==================== Drag & Drop 監聽 ====================
+        function dragStart(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', this.id);
+        }
+
+        function dragEnd() {
+            this.classList.remove('dragging');
+        }
+
+        function dragOver(e) {
+            e.preventDefault();
+        }
+
+        function dragEnter(e) {
+            e.preventDefault();
+            if(this.classList.contains('word-slot')) {
+                this.classList.add('drag-over');
+            }
+        }
+
+        function dragLeave() {
+            this.classList.remove('drag-over');
+        }
+
+        // 放置到下方答案空格
+        function dropToSlot(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+
+            if (this.children.length === 0) {
+                this.appendChild(draggedElement);
+                
+                // 單字放進空格時發音
+                speakText(draggedElement.innerText);
+                
+                checkAnswer(); 
+            }
+        }
+
+        // 拖回上方備選庫
+        function dropToPool(e) {
+            e.preventDefault();
+            if (e.target.id === 'words-container') {
+                this.appendChild(draggedElement);
+                checkAnswer();
+            }
+        }
+
+        // ==================== 檢查驗證與整句發音 ====================
+        function checkAnswer() {
+            const slots = document.querySelectorAll('.word-slot');
+            let currentUserWords = [];
+            let allFilled = true;
+
+            slots.forEach(slot => {
+                if (slot.children.length > 0) {
+                    currentUserWords.push(slot.children[0].innerText);
+                } else {
+                    allFilled = false;
+                    currentUserWords.push("");
+                }
+            });
+
+            if (allFilled) {
+                const isCorrect = currentUserWords.every((word, idx) => word === targetSentenceWords[idx]);
+                
+                if (isCorrect) {
+                    document.getElementById('result-message').innerHTML = '<span class="success-text">🎉 太厲害了！完全正確！🔊 正在為您朗讀整句...</span>';
+                    
+                    document.querySelectorAll('.drag-word').forEach(card => card.draggable = false);
+
+                    // 全對時整句發音
+                    speakText(rawFullSentence);
+
+                    // 延遲 3.5 秒跳轉下一題
+                    setTimeout(() => {
+                        currentIndex++;
+                        loadQuestion();
+                    }, 3500);
+                }
+            }
+        }
+
+        function showError(msg) {
+            const box = document.getElementById('alert-box');
+            box.style.display = 'block';
+            box.innerText = msg;
+        }
+    </script>
+</body>
+</html>
