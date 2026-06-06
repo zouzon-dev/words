@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章上傳系統</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 14px;
+        }
+
+        .btn-logout {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab-btn {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #718096;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ========== 上傳區塊 ========== */
+        .upload-section {
+            background: #f9fbfc;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px dashed #cbd5e1;
+            transition: all 0.3s;
+        }
+
+        .upload-section.dragover {
+            background: #e6f3ff;
+            border-color: #667eea;
+        }
+
+        .upload-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+
+        .upload-instructions {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .upload-instructions h3 {
+            color: #667eea;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .upload-instructions code {
+            background: #f5f7fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+        }
+
+        .upload-instructions ol {
+            margin-left: 20px;
+        }
+
+        .upload-instructions li {
+            margin-bottom: 8px;
+        }
+
+        .dropzone {
+            text-align: center;
+            padding: 40px;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .dropzone:hover {
+            border-color: #667eea;
+            background: #f9fbfc;
+        }
+
+        .dropzone.dragover {
+            border-color: #667eea;
+            background: #e6f3ff;
+        }
+
+        .dropzone-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .dropzone-text {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .dropzone-hint {
+            font-size: 12px;
+            color: #a0aec0;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #555;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #cbd5e1;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ========== 預覽表格 ========== */
+        .preview-section {
+            margin-top: 30px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .preview-table thead {
+            background: #f7fafc;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .preview-table th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .preview-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .preview-table tbody tr:hover {
+            background: #f9fbfc;
+        }
+
+        .seq-no {
+            background: #e6f3ff;
+            font-weight: 600;
+            color: #667eea;
+            border-radius: 4px;
+            width: 40px;
+            text-align: center;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #dc2626;
+        }
+
+        /* ========== 分類選擇 ========== */
+        .control-panel {
+            background: #f9fbfc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e0e7ff;
+            margin-bottom: 25px;
+        }
+
+        .control-panel label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        select {
+            width: 100%;
+            max-width: 300px;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+            background-color: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        select:hover {
+            border-color: #667eea;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* ========== 提示訊息 ========== */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-info {
+            background: #e6f3ff;
+            border: 1px solid #90cdf4;
+            color: #2c5aa0;
+        }
+
+        .alert-error {
+            background: #ffe6e6;
+            border: 1px solid #fc8181;
+            color: #c53030;
+        }
+
+        .alert-success {
+            background: #e6ffe6;
+            border: 1px solid #9ae6b4;
+            color: #22543d;
+        }
+
+        .alert-warning {
+            background: #fffacd;
+            border: 1px solid #ffd700;
+            color: #856404;
+        }
+
+        /* ========== 加載動畫 ========== */
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #f3f4f6;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #f9fbfc;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #a0aec0;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .preview-table {
+                font-size: 12px;
+            }
+
+            .preview-table th,
+            .preview-table td {
+                padding: 8px 10px;
+            }
+
+            select {
+                max-width: 100%;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 標題區 -->
+        <div class="header">
+            <h1>📚 文章上傳系統</h1>
+            <div class="user-info">
+                <span>👤 <span id="user-email">載入中...</span></span>
+                <button class="btn-logout" id="logout-btn">登出</button>
+            </div>
+        </div>
+
+        <!-- 內容區 -->
+        <div class="content">
+            <!-- 提示訊息 -->
+            <div id="alert-container"></div>
+
+            <!-- 頁籤選單 -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="upload">📤 上傳文章</button>
+                <button class="tab-btn" data-tab="preview">👁️ 預覽資料</button>
+                <button class="tab-btn" data-tab="template">📋 下載範本</button>
+            </div>
+
+            <!-- ========== 標籤 1: 上傳文章 ========== -->
+            <div id="upload" class="tab-content active">
+                <!-- 分類選擇 -->
+                <div class="control-panel">
+                    <label for="category-select">選擇目標分類 (Category)：</label>
+                    <select id="category-select">
+                        <option value="">正在從雲端同步分類...</option>
+                    </select>
+                </div>
+
+                <!-- 上傳說明 -->
+                <div class="upload-section">
+                    <div class="upload-title">📥 上傳 CSV 檔案</div>
+                    <div class="upload-instructions">
+                        <h3>✓ CSV 檔案格式要求：</h3>
+                        <ol>
+                            <li>第一列為標題列（固定）：<code>"英文原文","中文翻譯"</code></li>
+                            <li>序號會自動產生（從 1 開始）</li>
+                            <li>必須有英文和中文兩欄</li>
+                            <li>每列一個句子</li>
+                            <li>編碼：UTF-8</li>
+                        </ol>
+
+                        <h3 style="margin-top: 15px;">📝 CSV 範例：</h3>
+                        <code>"英文原文","中文翻譯"<br>
+                        "Hello, how are you?","你好，你好嗎？"<br>
+                        "I like learning English.","我喜歡學習英文。"<br>
+                        "Where is the nearest station?","最近的車站在哪裡？"</code>
+                    </div>
+
+                    <!-- 拖曳上傳區 -->
+                    <div class="dropzone" id="dropzone">
+                        <div class="dropzone-icon">📁</div>
+                        <div class="dropzone-text">拖曳 CSV 檔案到此，或點擊選擇</div>
+                        <div class="dropzone-hint">支援格式：.csv、.txt (UTF-8)</div>
+                    </div>
+
+                    <input type="file" id="file-input" accept=".csv,.txt" />
+
+                    <!-- 操作按鈕 -->
+                    <div class="button-group">
+                        <button class="btn-secondary" id="clear-btn" disabled>🗑️ 清空</button>
+                        <button class="btn-primary" id="upload-btn" disabled>
+                            <span>✅ 上傳到資料庫</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 預覽表格 -->
+                <div class="preview-section" style="display: none;" id="quick-preview-section">
+                    <div class="section-title">📊 上傳前預覽</div>
+                    <div style="overflow-x: auto;">
+                        <table class="preview-table" id="quick-preview-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 60px;">序號</th>
+                                    <th>英文原文</th>
+                                    <th>中文翻譯</th>
+                                    <th style="width: 60px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quick-preview-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== 標籤 2: 預覽資料 ========== -->
+            <div id="preview" class="tab-content">
+                <div class="control-panel">
+                    <label for="view-category-select">選擇要查看的分類：</label>
+                    <select id="view-category-select">
+                        <option value="">正在從雲端同步分類...</option>
+                    </select>
+                </div>
+
+                <div class="stats" id="preview-stats" style="display: none;">
+                    <div class="stat-card">
+                        <div class="stat-label">📊 總句子數</div>
+                        <div class="stat-value" id="stat-total">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">✅ 已翻譯</div>
+                        <div class="stat-value" id="stat-translated">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">⏳ 待翻譯</div>
+                        <div class="stat-value" id="stat-pending">0</div>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="preview-table" id="full-preview-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">序號</th>
+                                <th>英文</th>
+                                <th>中文</th>
+                                <th>來源</th>
+                                <th style="width: 100px;">上傳時間</th>
+                            </tr>
+                        </thead>
+                        <tbody id="full-preview-body">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="preview-empty" style="text-align: center; padding: 60px 40px; color: #a0aec0;">
+                    <div style="font-size: 48px; margin-bottom: 15px;">📚</div>
+                    <p>請選擇分類查看句子</p>
+                </div>
+            </div>
+
+            <!-- ========== 標籤 3: 下載範本 ========== -->
+            <div id="template" class="tab-content">
+                <div style="background: #f9fbfc; padding: 30px; border-radius: 12px; border: 1px solid #e0e7ff;">
+                    <div class="section-title">📥 下載 CSV 範本</div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <p style="color: #555; margin-bottom: 15px; line-height: 1.8;">
+                            點擊下方按鈕下載 CSV 範本檔案。<br>
+                            你可以在 Excel 或任何文字編輯器中編輯，然後上傳回本系統。
+                        </p>
+                    </div>
+
+                    <button class="btn-primary" id="download-template-btn" style="margin-bottom: 20px;">
+                        📥 下載 CSV 範本
+                    </button>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #f59e0b;">
+                        <h3 style="color: #555; font-size: 14px; margin-bottom: 12px;">⚠️ 注意事項：</h3>
+                        <ul style="font-size: 13px; color: #555; line-height: 1.8; margin-left: 20px;">
+                            <li>檔案編碼必須是 <strong>UTF-8</strong></li>
+                            <li>第一列是標題，不要刪除</li>
+                            <li>不要修改欄位名稱</li>
+                            <li>保持 CSV 格式（逗號分隔）</li>
+                            <li>中文和英文文字用雙引號包含</li>
+                        </ul>
+                    </div>
+
+                    <div style="background: #e6f3ff; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #667eea;">
+                        <h3 style="color: #2c5aa0; font-size: 14px; margin-bottom: 12px;">📋 範本示例：</h3>
+                        <pre style="background: white; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 12px; color: #555;"><code>"英文原文","中文翻譯"
+"Good morning!","早上好！"
+"How are you today?","你今天好嗎？"
+"I am very happy.","我非常高興。"
+"Let's learn English together.","讓我們一起學習英文。"</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 設定 ====================
+        const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+
+        // ==================== 全局狀態 ====================
+        let supabaseClient = null;
+        let currentUser = null;
+        let uploadedData = []; // 暫存上傳的資料
+        let categories = [];
+
+        // ==================== 初始化 ====================
+        window.onload = async function () {
+            if (typeof window.supabase === 'undefined') {
+                showAlert('系統載入失敗！您的瀏覽器攔截了資料庫連線。', 'error');
+                return;
+            }
+
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            // 檢查使用者登入
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session && session.user) {
+                currentUser = session.user;
+                document.getElementById('user-email').innerText = currentUser.email;
+                bindEvents();
+                loadCategoriesFromSupabase();
+            } else {
+                window.location.href = 'login.html';
+            }
+        };
+
+        // ==================== 事件綁定 ====================
+        function bindEvents() {
+            // 標籤切換
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    e.target.classList.add('active');
+                    const tabName = e.target.dataset.tab;
+                    document.getElementById(tabName).classList.add('active');
+                    
+                    // 切換到預覽頁籤時，重新加載分類
+                    if (tabName === 'preview') {
+                        loadViewCategories();
+                    }
+                });
+            });
+
+            // 登出
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+
+            // 文件上傳
+            const dropzone = document.getElementById('dropzone');
+            const fileInput = document.getElementById('file-input');
+
+            dropzone.addEventListener('click', () => fileInput.click());
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dragover');
+            });
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                handleFileSelect(e.dataTransfer.files[0]);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                handleFileSelect(e.target.files[0]);
+            });
+
+            // 上傳和清空按鈕
+            document.getElementById('upload-btn').addEventListener('click', uploadToDatabase);
+            document.getElementById('clear-btn').addEventListener('click', clearUpload);
+
+            // 分類選擇切換預覽
+            document.getElementById('view-category-select').addEventListener('change', loadPreviewData);
+
+            // 下載範本
+            document.getElementById('download-template-btn').addEventListener('click', downloadTemplate);
+        }
+
+        // ==================== 登出 ====================
+        async function handleLogout() {
+            await supabaseClient.auth.signOut();
+            window.location.href = 'login.html';
+        }
+
+        // ==================== 載入分類 ====================
+        async function loadCategoriesFromSupabase() {
+            const { data, error } = await supabaseClient
+                .from('categories')
+                .select('code, name')
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                showAlert(`載入分類失敗: ${error.message}`, 'error');
+                return;
+            }
+
+            categories = data || [];
+
+            // 更新上傳分類選擇
+            const uploadSelect = document.getElementById('category-select');
+            uploadSelect.innerHTML = '<option value="">選擇分類...</option>';
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.code;
+                opt.innerText = `${cat.name} (${cat.code})`;
+                uploadSelect.appendChild(opt);
+            });
+        }
+
+        async function loadViewCategories() {
+            const viewSelect = document.getElementById('view-category-select');
+            viewSelect.innerHTML = '<option value="">選擇分類...</option>';
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.code;
+                opt.innerText = `${cat.name} (${cat.code})`;
+                viewSelect.appendChild(opt);
+            });
+        }
+
+        // ==================== 處理文件選擇 ====================
+        async function handleFileSelect(file) {
+            if (!file) return;
+
+            if (!file.name.endsWith('.csv') && !file.name.endsWith('.txt')) {
+                showAlert('❌ 只支援 .csv 或 .txt 檔案', 'error');
+                return;
+            }
+
+            const text = await file.text();
+            const lines = text.trim().split('\n').map(line => line.trim()).filter(line => line);
+
+            if (lines.length < 2) {
+                showAlert('❌ 檔案內容不足（至少需要標題行和一行資料）', 'error');
+                return;
+            }
+
+            // 解析 CSV
+            try {
+                uploadedData = parseCSV(lines);
+
+                if (uploadedData.length === 0) {
+                    showAlert('❌ 無法解析 CSV 檔案', 'error');
+                    return;
+                }
+
+                // 顯示預覽
+                showQuickPreview();
+                document.getElementById('upload-btn').disabled = false;
+                document.getElementById('clear-btn').disabled = false;
+
+                showAlert(`✅ 已讀取 ${uploadedData.length} 個句子`, 'success');
+            } catch (error) {
+                showAlert(`❌ 解析失敗: ${error.message}`, 'error');
+            }
+        }
+
+        // ==================== 解析 CSV ====================
+        function parseCSV(lines) {
+            const data = [];
+            
+            // 跳過標題行，從第二行開始
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                
+                // 簡單的 CSV 解析（處理引號）
+                const matches = line.match(/"([^"]*)"/g);
+                if (!matches || matches.length < 2) continue;
+
+                const en = matches[0].replace(/"/g, '').trim();
+                const ch = matches[1].replace(/"/g, '').trim();
+
+                if (en && ch) {
+                    data.push({
+                        sequence_no: data.length + 1,
+                        en: en,
+                        ch: ch
+                    });
+                }
+            }
+
+            return data;
+        }
+
+        // ==================== 顯示快速預覽 ====================
+        function showQuickPreview() {
+            const section = document.getElementById('quick-preview-section');
+            const tbody = document.getElementById('quick-preview-body');
+
+            tbody.innerHTML = uploadedData.map((item, idx) => `
+                <tr>
+                    <td><span class="seq-no">${item.sequence_no}</span></td>
+                    <td>${escapeHtml(item.en)}</td>
+                    <td>${escapeHtml(item.ch)}</td>
+                    <td><button class="action-btn" onclick="removeRow(${idx})">刪除</button></td>
+                </tr>
+            `).join('');
+
+            section.style.display = 'block';
+        }
+
+        // ==================== 移除行 ====================
+        function removeRow(idx) {
+            uploadedData.splice(idx, 1);
+            // 重新編號
+            uploadedData.forEach((item, i) => {
+                item.sequence_no = i + 1;
+            });
+            showQuickPreview();
+        }
+
+        // ==================== 清空上傳 ====================
+        function clearUpload() {
+            uploadedData = [];
+            document.getElementById('file-input').value = '';
+            document.getElementById('quick-preview-section').style.display = 'none';
+            document.getElementById('upload-btn').disabled = true;
+            document.getElementById('clear-btn').disabled = true;
+            showAlert('已清空上傳資料', 'info');
+        }
+
+        // ==================== 上傳到資料庫 ====================
+        async function uploadToDatabase() {
+            const categoryCode = document.getElementById('category-select').value;
+
+            if (!categoryCode) {
+                showAlert('❌ 請選擇目標分類', 'error');
+                return;
+            }
+
+            if (uploadedData.length === 0) {
+                showAlert('❌ 沒有要上傳的資料', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('upload-btn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span> 上傳中...';
+
+            try {
+                // 準備資料
+                const dataToInsert = uploadedData.map(item => ({
+                    sequence_no: item.sequence_no,
+                    en: item.en,
+                    ch: item.ch,
+                    category_code: categoryCode
+                }));
+
+                // 檢查是否需要建立 sentences 表
+                // 嘗試插入資料
+                const { error } = await supabaseClient
+                    .from('sentences')
+                    .insert(dataToInsert);
+
+                if (error) {
+                    // 如果表不存在，提示使用者建立表
+                    if (error.message.includes('relation') || error.message.includes('does not exist')) {
+                        showAlert('❌ sentences 表尚未建立。請先執行以下 SQL 語句建立表：\n\n' + 
+                            'CREATE TABLE sentences (\n' +
+                            '  id BIGSERIAL PRIMARY KEY,\n' +
+                            '  sequence_no INTEGER NOT NULL,\n' +
+                            '  en TEXT NOT NULL,\n' +
+                            '  ch TEXT NOT NULL,\n' +
+                            '  category_code VARCHAR(50),\n' +
+                            '  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()\n' +
+                            ');', 'error');
+                    } else {
+                        showAlert(`❌ 上傳失敗: ${error.message}`, 'error');
+                    }
+                    return;
+                }
+
+                showAlert(`✅ 成功上傳 ${dataToInsert.length} 個句子到資料庫！`, 'success');
+                clearUpload();
+
+            } catch (error) {
+                showAlert(`❌ 上傳出錯: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // ==================== 載入預覽資料 ====================
+        async function loadPreviewData() {
+            const categoryCode = document.getElementById('view-category-select').value;
+
+            if (!categoryCode) {
+                document.getElementById('preview-empty').style.display = 'block';
+                document.getElementById('full-preview-table').style.display = 'none';
+                document.getElementById('preview-stats').style.display = 'none';
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('sentences')
+                    .select('*')
+                    .eq('category_code', categoryCode)
+                    .order('sequence_no', { ascending: true });
+
+                if (error) {
+                    showAlert(`載入失敗: ${error.message}`, 'error');
+                    return;
+                }
+
+                if (!data || data.length === 0) {
+                    document.getElementById('preview-empty').style.display = 'block';
+                    document.getElementById('full-preview-table').style.display = 'none';
+                    document.getElementById('preview-stats').style.display = 'none';
+                    return;
+                }
+
+                // 顯示統計
+                const translated = data.filter(d => d.ch).length;
+                document.getElementById('stat-total').innerText = data.length;
+                document.getElementById('stat-translated').innerText = translated;
+                document.getElementById('stat-pending').innerText = data.length - translated;
+
+                // 顯示表格
+                const tbody = document.getElementById('full-preview-body');
+                tbody.innerHTML = data.map(item => `
+                    <tr>
+                        <td><span class="seq-no">${item.sequence_no}</span></td>
+                        <td>${escapeHtml(item.en)}</td>
+                        <td>${escapeHtml(item.ch)}</td>
+                        <td>Supabase</td>
+                        <td>${new Date(item.created_at).toLocaleDateString('zh-TW')}</td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('preview-empty').style.display = 'none';
+                document.getElementById('full-preview-table').style.display = 'table';
+                document.getElementById('preview-stats').style.display = 'grid';
+
+            } catch (error) {
+                showAlert(`錯誤: ${error.message}`, 'error');
+            }
+        }
+
+        // ==================== 下載範本 ====================
+        function downloadTemplate() {
+            const csvContent = `"英文原文","中文翻譯"
+"Good morning!","早上好！"
+"How are you today?","你今天好嗎？"
+"I am very happy.","我非常高興。"
+"Let's learn English together.","讓我們一起學習英文。"
+"What is your name?","你叫什麼名字？"
+"Nice to meet you.","很高興認識你。"
+"Where is the bathroom?","洗手間在哪裡？"
+"Thank you very much.","非常感謝你。"
+"See you later.","待會見。"`;
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'article_template.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showAlert('✅ CSV 範本已下載', 'success');
+        }
+
+        // ==================== 工具函數 ====================
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showAlert(message, type = 'info') {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            
+            const icon = {
+                success: '✅',
+                error: '❌',
+                info: 'ℹ️',
+                warning: '⚠️'
+            }[type] || 'ℹ️';
+
+            alert.innerHTML = `
+                <span>${icon}</span>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(alert);
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 300);
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
