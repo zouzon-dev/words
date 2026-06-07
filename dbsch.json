@@ -212,3 +212,61 @@ quiz_logs
   }
 ]
 
+articles
+{
+  "table": "sentences",
+  "columns": [
+    {
+      "name": "id",
+      "type": "BIGSERIAL",
+      "constraints": ["PRIMARY KEY"]
+    },
+    {
+      "name": "sequence_no",
+      "type": "INTEGER",
+      "nullable": false
+    },
+    {
+      "name": "en",
+      "type": "TEXT",
+      "nullable": false
+    },
+    {
+      "name": "ch",
+      "type": "TEXT",
+      "nullable": false
+    },
+    {
+      "name": "category_code",
+      "type": "VARCHAR(50)",
+      "nullable": true
+    },
+    {
+      "name": "article_category",
+      "type": "VARCHAR(50)",
+      "nullable": true
+    },
+    {
+      "name": "created_at",
+      "type": "TIMESTAMP WITH TIME ZONE",
+      "default": "now()"
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_sentences_category",
+      "columns": ["category_code"]
+    },
+    {
+      "name": "idx_sentences_sequence",
+      "columns": ["sequence_no"]
+    },
+    {
+      "name": "idx_sentences_article_category",
+      "columns": ["article_category"]
+    }
+  ]
+}
+
+
+
