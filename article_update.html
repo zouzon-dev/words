@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 文章管理系統</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #f4f6f9; padding: 40px 20px; display: flex; justify-content: center; }
+        .container { max-width: 900px; width: 100%; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+        label { font-weight: bold; color: #4a5568; font-size: 14px; }
+        input[type="text"], textarea, select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 14px; outline: none; }
+        input[type="text"]:focus, textarea:focus, select:focus { border-color: #3498db; }
+        textarea { resize: vertical; min-height: 80px; }
+        
+        .btn-add { padding: 12px; font-size: 16px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; transition: background-color 0.3s; }
+        .btn-add:hover { background-color: #2980b9; }
+        
+        .list-section { margin-top: 30px; }
+        .list-title { font-weight: bold; margin-bottom: 10px; color: #1a1a1a; border-bottom: 1px solid #eaeaea; padding-bottom: 5px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        th { background-color: #f8fafc; color: #64748b; font-weight: bold; }
+        
+        .btn-edit { background-color: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-right: 5px; }
+        .btn-edit:hover { background-color: #d97706; }
+        
+        .btn-delete { background-color: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-delete:hover { background-color: #dc2626; }
+        
+        .status { margin-top: 20px; padding: 12px; border-radius: 4px; display: none; font-weight: bold; font-size: 14px; }
+        .success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        
+        .edit-form { background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: none; }
+        .edit-form.active { display: block; }
+        
+        .btn-cancel { background-color: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-cancel:hover { background-color: #4b5563; }
+        
+        .form-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .form-actions button { flex: 1; padding: 10px; }
+        
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media (max-width: 600px) {
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container">
+    <h2>📝 Supabase 文章管理系統</h2>
+    
+    <div style="background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 20px;">
+        <h3 style="margin-top: 0; font-size: 16px; color: #334155;">➕ 新增文章</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="article-seq">序號 (sequence_no) <span style="color:#ef4444; font-size:12px;">*必填</span></label>
+                <input type="text" id="article-seq" placeholder="例如: 1, 2, 3">
+            </div>
+            <div class="form-group">
+                <label for="article-category">文章分類 (article_category) <span style="color:#ef4444; font-size:12px;">*必填</span></label>
+                <select id="article-category">
+                    <option value="">-- 選擇分類 --</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="article-en">英文內容 (en) <span style="color:#ef4444; font-size:12px;">*必填</span></label>
+            <textarea id="article-en" placeholder="請輸入英文文章內容..."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="article-ch">中文譯文 (ch) <span style="color:#ef4444; font-size:12px;">*必填</span></label>
+            <textarea id="article-ch" placeholder="請輸入中文譯文..."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="category-code">單字分類代碼 (category_code) <span style="color:#94a3b8; font-size:12px;">選填</span></label>
+            <input type="text" id="category-code" placeholder="例如: default, business">
+        </div>
+        <button id="add-btn" class="btn-add">儲存並建立文章</button>
+    </div>
+
+    <div id="status-box" class="status"></div>
+
+    <!-- 編輯表單 -->
+    <div id="edit-form" class="edit-form">
+        <h3 style="margin-top: 0; font-size: 16px; color: #334155;">✏️ 編輯文章</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="edit-seq">序號 (sequence_no)</label>
+                <input type="text" id="edit-seq" placeholder="例如: 1">
+            </div>
+            <div class="form-group">
+                <label for="edit-article-category">文章分類 (article_category)</label>
+                <select id="edit-article-category">
+                    <option value="">-- 選擇分類 --</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="edit-en">英文內容 (en)</label>
+            <textarea id="edit-en" placeholder="英文文章內容..."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="edit-ch">中文譯文 (ch)</label>
+            <textarea id="edit-ch" placeholder="中文譯文..."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="edit-category-code">單字分類代碼 (category_code)</label>
+            <input type="text" id="edit-category-code" placeholder="例如: default">
+        </div>
+        <div class="form-actions">
+            <button id="update-btn" class="btn-add" style="background-color: #10b981;">更新</button>
+            <button id="cancel-btn" class="btn-cancel">取消</button>
+        </div>
+    </div>
+
+    <div class="list-section">
+        <div class="list-title">📋 目前雲端現有文章</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 60px;">序號</th>
+                    <th>分類</th>
+                    <th>英文內容</th>
+                    <th style="width: 150px; text-align: center;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="article-table-body">
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #94a3b8;">文章清單載入中...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    
+    let supabaseClient;
+    let currentEditingId = null;
+    let categories = [];
+    
+    window.onload = function() {
+        if (typeof window.supabase !== 'undefined') {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: { persistSession: false }
+            });
+            
+            // 綁定事件
+            document.getElementById('add-btn').addEventListener('click', handleAddArticle);
+            document.getElementById('update-btn').addEventListener('click', handleUpdateArticle);
+            document.getElementById('cancel-btn').addEventListener('click', cancelEdit);
+            
+            // 載入分類和清單
+            fetchArticleCategories();
+            fetchArticles();
+        } else {
+            alert("錯誤：無法載入 Supabase SDK。");
+        }
+    };
+
+    // 1. 撈取所有文章分類並填入下拉選單
+    async function fetchArticleCategories() {
+        const { data, error } = await supabaseClient
+            .from('article_categories')
+            .select('id, title, slug')
+            .order('sort_order', { ascending: true });
+
+        if (error) {
+            console.error('載入分類失敗：', error.message);
+            return;
+        }
+
+        categories = data || [];
+        
+        // 填入新增表單的分類選單
+        const categorySelect = document.getElementById('article-category');
+        categorySelect.innerHTML = '<option value="">-- 選擇分類 --</option>';
+        
+        categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.slug;
+            option.textContent = cat.title;
+            categorySelect.appendChild(option);
+        });
+        
+        // 填入編輯表單的分類選單
+        const editCategorySelect = document.getElementById('edit-article-category');
+        editCategorySelect.innerHTML = '<option value="">-- 選擇分類 --</option>';
+        
+        categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.slug;
+            option.textContent = cat.title;
+            editCategorySelect.appendChild(option);
+        });
+    }
+
+    // 2. 撈取雲端所有文章並渲染表格
+    async function fetchArticles() {
+        const tbody = document.getElementById('article-table-body');
+        
+        const { data, error } = await supabaseClient
+            .from('sentences')
+            .select('id, sequence_no, en, ch, article_category, category_code, created_at')
+            .order('sequence_no', { ascending: true });
+
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ef4444;">載入失敗：${error.message}</td></tr>`;
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8;">目前沒有任何文章</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.forEach(article => {
+            const tr = document.createElement('tr');
+            const enText = article.en.length > 50 ? article.en.substring(0, 50) + '...' : article.en;
+            
+            tr.innerHTML = `
+                <td><strong>${article.sequence_no}</strong></td>
+                <td>${article.article_category || '-'}</td>
+                <td title="${article.en}">${enText}</td>
+                <td style="text-align: center;">
+                    <button class="btn-edit" data-id="${article.id}">編輯</button>
+                    <button class="btn-delete" data-id="${article.id}" data-seq="${article.sequence_no}">刪除</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // 幫所有編輯按鈕綁定事件
+        document.querySelectorAll('.btn-edit').forEach(btn => {
+            btn.addEventListener('click', handleEditClick);
+        });
+
+        // 幫所有刪除按鈕綁定事件
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', handleDeleteArticle);
+        });
+    }
+
+    // 3. 處理新增文章
+    async function handleAddArticle() {
+        const seqInput = document.getElementById('article-seq');
+        const categoryInput = document.getElementById('article-category');
+        const enInput = document.getElementById('article-en');
+        const chInput = document.getElementById('article-ch');
+        const catCodeInput = document.getElementById('category-code');
+        
+        const sequence_no = parseInt(seqInput.value.trim());
+        const article_category = categoryInput.value.trim();
+        const en = enInput.value.trim();
+        const ch = chInput.value.trim();
+        const category_code = catCodeInput.value.trim() || 'default';
+
+        if (!sequence_no || !article_category || !en || !ch) {
+            alert("序號、分類、英文內容和中文譯文欄位請勿留白！");
+            return;
+        }
+
+        showStatus("正在寫入雲端...", false);
+
+        const { error } = await supabaseClient
+            .from('sentences')
+            .insert([{ 
+                sequence_no, 
+                article_category, 
+                en, 
+                ch,
+                category_code
+            }]);
+
+        if (error) {
+            showStatus(`建立失敗：${error.message}`, true);
+        } else {
+            showStatus(`🎉 成功建立文章：序號 ${sequence_no}`);
+            seqInput.value = '';
+            categoryInput.value = '';
+            enInput.value = '';
+            chInput.value = '';
+            catCodeInput.value = '';
+            fetchArticles(); // 刷新列表
+        }
+    }
+
+    // 4. 處理編輯按鈕點擊
+    async function handleEditClick() {
+        const id = this.getAttribute('data-id');
+        
+        const { data, error } = await supabaseClient
+            .from('sentences')
+            .select('id, sequence_no, article_category, en, ch, category_code')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            showStatus(`取得資料失敗：${error.message}`, true);
+            return;
+        }
+
+        currentEditingId = data.id;
+        document.getElementById('edit-seq').value = data.sequence_no || '';
+        document.getElementById('edit-article-category').value = data.article_category || '';
+        document.getElementById('edit-en').value = data.en || '';
+        document.getElementById('edit-ch').value = data.ch || '';
+        document.getElementById('edit-category-code').value = data.category_code || '';
+        
+        document.getElementById('edit-form').classList.add('active');
+    }
+
+    // 5. 處理更新文章
+    async function handleUpdateArticle() {
+        if (!currentEditingId) {
+            alert("沒有選取要編輯的項目！");
+            return;
+        }
+
+        const sequence_no = parseInt(document.getElementById('edit-seq').value.trim());
+        const article_category = document.getElementById('edit-article-category').value.trim();
+        const en = document.getElementById('edit-en').value.trim();
+        const ch = document.getElementById('edit-ch').value.trim();
+        const category_code = document.getElementById('edit-category-code').value.trim() || 'default';
+
+        if (!sequence_no || !article_category || !en || !ch) {
+            alert("序號、分類、英文內容和中文譯文欄位請勿留白！");
+            return;
+        }
+
+        showStatus("正在更新雲端...", false);
+
+        const { error } = await supabaseClient
+            .from('sentences')
+            .update({ 
+                sequence_no, 
+                article_category, 
+                en, 
+                ch,
+                category_code
+            })
+            .eq('id', currentEditingId);
+
+        if (error) {
+            showStatus(`更新失敗：${error.message}`, true);
+        } else {
+            showStatus(`🎉 成功更新文章：序號 ${sequence_no}`);
+            cancelEdit();
+            fetchArticles(); // 刷新列表
+        }
+    }
+
+    // 6. 取消編輯
+    function cancelEdit() {
+        currentEditingId = null;
+        document.getElementById('edit-form').classList.remove('active');
+        document.getElementById('edit-seq').value = '';
+        document.getElementById('edit-article-category').value = '';
+        document.getElementById('edit-en').value = '';
+        document.getElementById('edit-ch').value = '';
+        document.getElementById('edit-category-code').value = '';
+    }
+
+    // 7. 處理刪除文章
+    async function handleDeleteArticle() {
+        const id = this.getAttribute('data-id');
+        const seq = this.getAttribute('data-seq');
+
+        if (!id || !seq) return;
+
+        const confirmCheck = confirm(`⚠️ 確定要刪除序號「${seq}」的文章嗎？`);
+        if (!confirmCheck) return;
+
+        showStatus(`正在刪除文章 (序號: ${seq})...`, false);
+
+        const { error } = await supabaseClient
+            .from('sentences')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            showStatus(`刪除失敗：${error.message}`, true);
+        } else {
+            showStatus(`🎉 已成功刪除文章：序號 ${seq}`);
+            fetchArticles(); // 刷新列表
+        }
+    }
+
+    // 狀態提示小工具
+    function showStatus(message, isError = false) {
+        const box = document.getElementById('status-box');
+        box.style.display = 'block';
+        box.className = `status ${isError ? 'error' : 'success'}`;
+        box.innerHTML = message;
+    }
+</script>
+
+</body>
+</html>
