@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文章標題管理系統</title>
+    <title>Supabase 文章分類管理系統</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #f4f6f9; padding: 40px 20px; display: flex; justify-content: center; }
-        .container { max-width: 700px; width: 100%; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .container { max-width: 600px; width: 100%; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         h2 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
         .form-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
         label { font-weight: bold; color: #4a5568; font-size: 14px; }
-        input[type="text"], textarea { padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 14px; outline: none; font-family: inherit; }
-        input[type="text"]:focus, textarea:focus { border-color: #3498db; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1); }
+        input[type="text"], textarea { padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 14px; outline: none; }
+        input[type="text"]:focus, textarea:focus { border-color: #3498db; }
         textarea { resize: vertical; min-height: 80px; }
         
         .btn-add { padding: 12px; font-size: 16px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; transition: background-color 0.3s; }
         .btn-add:hover { background-color: #2980b9; }
-        .btn-add:disabled { background-color: #cbd5e1; cursor: not-allowed; }
         
         .list-section { margin-top: 30px; }
         .list-title { font-weight: bold; margin-bottom: 10px; color: #1a1a1a; border-bottom: 1px solid #eaeaea; padding-bottom: 5px; }
@@ -25,96 +24,96 @@
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
         th { background-color: #f8fafc; color: #64748b; font-weight: bold; }
         
-        .btn-edit, .btn-delete { border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
-        .btn-edit { background-color: #f59e0b; color: white; }
+        .btn-edit { background-color: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-right: 5px; }
         .btn-edit:hover { background-color: #d97706; }
-        .btn-delete { background-color: #ef4444; color: white; }
+        
+        .btn-delete { background-color: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
         .btn-delete:hover { background-color: #dc2626; }
-        .btn-delete:disabled { background-color: #cbd5e1; cursor: not-allowed; }
-
+        
         .status { margin-top: 20px; padding: 12px; border-radius: 4px; display: none; font-weight: bold; font-size: 14px; }
         .success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
         .error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-
-        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); }
-        .modal-content { background-color: #fefeff; margin: 10% auto; padding: 20px; border: 1px solid #888; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .close:hover { color: #000; }
-        .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
-        .btn-modal { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; }
-        .btn-modal-cancel { background-color: #cbd5e1; color: #1a1a1a; }
-        .btn-modal-cancel:hover { background-color: #a0aec0; }
-        .btn-modal-save { background-color: #3498db; color: white; }
-        .btn-modal-save:hover { background-color: #2980b9; }
-
-        .action-buttons { display: flex; gap: 8px; justify-content: center; }
+        
+        .edit-form { background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: none; }
+        .edit-form.active { display: block; }
+        
+        .btn-cancel { background-color: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-cancel:hover { background-color: #4b5563; }
+        
+        .form-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .form-actions button { flex: 1; padding: 10px; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
 <div class="container">
-    <h2>📚 文章標題管理系統</h2>
+    <h2>📚 Supabase 文章分類管理系統</h2>
     
     <div style="background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 20px;">
-        <h3 style="margin-top: 0; font-size: 16px; color: #334155;">➕ 新增文章標題</h3>
+        <h3 style="margin-top: 0; font-size: 16px; color: #334155;">➕ 新增文章分類</h3>
         <div class="form-group">
-            <label for="article-code">文章代碼 (code) <span style="color:#ef4444; font-size:12px;">*必填，限英文小寫、數字，不能重複</span></label>
-            <input type="text" id="article-code" placeholder="例如: article_001, reading_101">
+            <label for="cat-slug">分類別名 (slug) <span style="color:#ef4444; font-size:12px;">*必填，限英文小寫、數字、連字號</span></label>
+            <input type="text" id="cat-slug" placeholder="例如: english-news, business-article">
         </div>
         <div class="form-group">
-            <label for="article-title">文章標題 (title) <span style="color:#ef4444; font-size:12px;">*必填</span></label>
-            <input type="text" id="article-title" placeholder="例如: 英文時事閱讀, 經典小說選讀">
+            <label for="cat-title">分類標題 (title) <span style="color:#ef4444; font-size:12px;">*必填，前台看到的名稱</span></label>
+            <input type="text" id="cat-title" placeholder="例如: 英文新聞, 商業文章">
         </div>
         <div class="form-group">
-            <label for="article-description">文章描述 (description)</label>
-            <textarea id="article-description" placeholder="選填：簡短描述此文章的內容"></textarea>
+            <label for="cat-description">分類描述 (description) <span style="color:#94a3b8; font-size:12px;">選填</span></label>
+            <textarea id="cat-description" placeholder="例如: 本分類介紹最新英文新聞..."></textarea>
         </div>
-        <button id="add-btn" class="btn-add">儲存並建立文章標題</button>
+        <div class="form-group">
+            <label for="cat-sort">排序 (sort_order) <span style="color:#94a3b8; font-size:12px;">選填，預設為 0</span></label>
+            <input type="text" id="cat-sort" placeholder="0" value="0">
+        </div>
+        <button id="add-btn" class="btn-add">儲存並建立分類</button>
     </div>
 
     <div id="status-box" class="status"></div>
 
+    <!-- 編輯表單 -->
+    <div id="edit-form" class="edit-form">
+        <h3 style="margin-top: 0; font-size: 16px; color: #334155;">✏️ 編輯文章分類</h3>
+        <div class="form-group">
+            <label for="edit-slug">分類別名 (slug)</label>
+            <input type="text" id="edit-slug" placeholder="例如: english-news">
+        </div>
+        <div class="form-group">
+            <label for="edit-title">分類標題 (title)</label>
+            <input type="text" id="edit-title" placeholder="例如: 英文新聞">
+        </div>
+        <div class="form-group">
+            <label for="edit-description">分類描述 (description)</label>
+            <textarea id="edit-description" placeholder="分類描述..."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="edit-sort">排序 (sort_order)</label>
+            <input type="text" id="edit-sort" placeholder="0">
+        </div>
+        <div class="form-actions">
+            <button id="update-btn" class="btn-add" style="background-color: #10b981;">更新</button>
+            <button id="cancel-btn" class="btn-cancel">取消</button>
+        </div>
+    </div>
+
     <div class="list-section">
-        <div class="list-title">📋 目前雲端現有文章標題</div>
+        <div class="list-title">📋 目前雲端現有文章分類</div>
         <table>
             <thead>
                 <tr>
-                    <th>代碼 (code)</th>
+                    <th>別名 (slug)</th>
                     <th>標題 (title)</th>
-                    <th style="width: 150px; text-align: center;">操作</th>
+                    <th style="width: 100px; text-align: center;">操作</th>
                 </tr>
             </thead>
-            <tbody id="article-table-body">
+            <tbody id="category-table-body">
                 <tr>
-                    <td colspan="3" style="text-align: center; color: #94a3b8;">文章標題清單載入中...</td>
+                    <td colspan="3" style="text-align: center; color: #94a3b8;">分類清單載入中...</td>
                 </tr>
             </tbody>
         </table>
-    </div>
-</div>
-
-<!-- 編輯模態框 -->
-<div id="editModal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <h3 style="margin-top: 0; color: #1a1a1a;">編輯文章標題</h3>
-        <div class="form-group">
-            <label for="edit-code">文章代碼 (code)</label>
-            <input type="text" id="edit-code" placeholder="代碼" disabled style="background-color: #f3f4f6; cursor: not-allowed;">
-        </div>
-        <div class="form-group">
-            <label for="edit-title">文章標題 (title) <span style="color:#ef4444; font-size:12px;">*必填</span></label>
-            <input type="text" id="edit-title" placeholder="文章標題">
-        </div>
-        <div class="form-group">
-            <label for="edit-description">文章描述 (description)</label>
-            <textarea id="edit-description" placeholder="文章描述"></textarea>
-        </div>
-        <div class="modal-buttons">
-            <button class="btn-modal btn-modal-cancel" onclick="closeEditModal()">取消</button>
-            <button class="btn-modal btn-modal-save" onclick="handleSaveEdit()">儲存</button>
-        </div>
     </div>
 </div>
 
@@ -123,7 +122,7 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
     
     let supabaseClient;
-    let editingArticleId = null;
+    let currentEditingId = null;
     
     window.onload = function() {
         if (typeof window.supabase !== 'undefined') {
@@ -131,29 +130,26 @@
                 auth: { persistSession: false }
             });
             
-            // 綁定按鈕事件
-            document.getElementById('add-btn').addEventListener('click', handleAddArticle);
-            document.querySelector('.close').addEventListener('click', closeEditModal);
-            window.addEventListener('click', function(event) {
-                const modal = document.getElementById('editModal');
-                if (event.target == modal) closeEditModal();
-            });
+            // 綁定事件
+            document.getElementById('add-btn').addEventListener('click', handleAddCategory);
+            document.getElementById('update-btn').addEventListener('click', handleUpdateCategory);
+            document.getElementById('cancel-btn').addEventListener('click', cancelEdit);
             
             // 載入清單
-            fetchArticles();
+            fetchCategories();
         } else {
             alert("錯誤：無法載入 Supabase SDK。");
         }
     };
 
-    // 1. 撈取雲端所有文章標題並渲染表格
-    async function fetchArticles() {
-        const tbody = document.getElementById('article-table-body');
+    // 1. 撈取雲端所有文章分類並渲染表格
+    async function fetchCategories() {
+        const tbody = document.getElementById('category-table-body');
         
         const { data, error } = await supabaseClient
             .from('article_categories')
-            .select('id, code, title, description')
-            .order('created_at', { ascending: true });
+            .select('id, slug, title, description, sort_order, created_at')
+            .order('sort_order', { ascending: true });
 
         if (error) {
             tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #ef4444;">載入失敗：${error.message}</td></tr>`;
@@ -161,47 +157,57 @@
         }
 
         if (!data || data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">目前沒有任何文章標題</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">目前沒有任何文章分類</td></tr>`;
             return;
         }
 
         tbody.innerHTML = '';
-        data.forEach(article => {
+        data.forEach(cat => {
             const tr = document.createElement('tr');
             
             tr.innerHTML = `
-                <td><strong>${article.code}</strong></td>
-                <td>${article.title}</td>
+                <td><strong>${cat.slug}</strong></td>
+                <td>${cat.title}</td>
                 <td style="text-align: center;">
-                    <div class="action-buttons">
-                        <button class="btn-edit" onclick="openEditModal(${article.id}, '${article.code}', '${article.title.replace(/'/g, "\\'")}', '${(article.description || '').replace(/'/g, "\\'")}')">編輯</button>
-                        <button class="btn-delete" onclick="handleDeleteArticle(${article.id}, '${article.code}')">刪除</button>
-                    </div>
+                    <button class="btn-edit" data-id="${cat.id}">編輯</button>
+                    <button class="btn-delete" data-id="${cat.id}" data-slug="${cat.slug}">刪除</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
+
+        // 幫所有編輯按鈕綁定事件
+        document.querySelectorAll('.btn-edit').forEach(btn => {
+            btn.addEventListener('click', handleEditClick);
+        });
+
+        // 幫所有刪除按鈕綁定事件
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', handleDeleteCategory);
+        });
     }
 
-    // 2. 處理新增文章標題
-    async function handleAddArticle() {
-        const codeInput = document.getElementById('article-code');
-        const titleInput = document.getElementById('article-title');
-        const descInput = document.getElementById('article-description');
+    // 2. 處理新增文章分類
+    async function handleAddCategory() {
+        const slugInput = document.getElementById('cat-slug');
+        const titleInput = document.getElementById('cat-title');
+        const descInput = document.getElementById('cat-description');
+        const sortInput = document.getElementById('cat-sort');
         
-        const code = codeInput.value.trim().toLowerCase(); // 自動轉小寫防呆
+        const slug = slugInput.value.trim().toLowerCase();
         const title = titleInput.value.trim();
-        const description = descInput.value.trim() || null;
+        const description = descInput.value.trim();
+        const sortOrder = parseInt(sortInput.value) || 0;
 
-        if (!code || !title) {
-            alert("代碼和標題欄位請勿留白！");
+        if (!slug || !title) {
+            alert("別名和標題欄位請勿留白！");
             return;
         }
 
-        // 檢查 code 格式（只允許英文、數字、底線）
-        const codeRegex = /^[a-z0-9_]+$/;
-        if (!codeRegex.test(code)) {
-            alert("文章代碼只能包含英文小寫、數字與底線（例如: article_001）");
+        // 檢查 slug 格式（只允許英文、數字、連字號）
+        const slugRegex = /^[a-z0-9-]+$/;
+        if (!slugRegex.test(slug)) {
+            alert("分類別名只能包含英文小寫、數字與連字號（例如: english-news）");
             return;
         }
 
@@ -209,72 +215,112 @@
 
         const { error } = await supabaseClient
             .from('article_categories')
-            .insert([{ code, title, description }]);
+            .insert([{ slug, title, description: description || null, sort_order: sortOrder }]);
 
         if (error) {
             if (error.code === '23505') { // PostgreSQL 唯一值衝突代碼
-                showStatus(`建立失敗：代碼「${code}」已經存在了！`, true);
+                showStatus(`建立失敗：別名「${slug}」已經存在了！`, true);
             } else {
                 showStatus(`建立失敗：${error.message}`, true);
             }
         } else {
-            showStatus(`🎉 成功建立文章標題：${title} (${code})`);
-            codeInput.value = '';
+            showStatus(`🎉 成功建立文章分類：${title} (${slug})`);
+            slugInput.value = '';
             titleInput.value = '';
             descInput.value = '';
-            fetchArticles(); // 刷新列表
+            sortInput.value = '0';
+            fetchCategories(); // 刷新列表
         }
     }
 
-    // 3. 打開編輯模態框
-    function openEditModal(id, code, title, description) {
-        editingArticleId = id;
-        document.getElementById('edit-code').value = code;
-        document.getElementById('edit-title').value = title;
-        document.getElementById('edit-description').value = description || '';
-        document.getElementById('editModal').style.display = 'block';
+    // 3. 處理編輯按鈕點擊
+    async function handleEditClick() {
+        const id = this.getAttribute('data-id');
+        
+        const { data, error } = await supabaseClient
+            .from('article_categories')
+            .select('id, slug, title, description, sort_order')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            showStatus(`取得資料失敗：${error.message}`, true);
+            return;
+        }
+
+        currentEditingId = data.id;
+        document.getElementById('edit-slug').value = data.slug;
+        document.getElementById('edit-title').value = data.title;
+        document.getElementById('edit-description').value = data.description || '';
+        document.getElementById('edit-sort').value = data.sort_order || '0';
+        
+        document.getElementById('edit-form').classList.add('active');
     }
 
-    // 4. 關閉編輯模態框
-    function closeEditModal() {
-        document.getElementById('editModal').style.display = 'none';
-        editingArticleId = null;
-    }
+    // 4. 處理更新文章分類
+    async function handleUpdateCategory() {
+        if (!currentEditingId) {
+            alert("沒有選取要編輯的項目！");
+            return;
+        }
 
-    // 5. 處理編輯保存
-    async function handleSaveEdit() {
-        if (!editingArticleId) return;
-
+        const slug = document.getElementById('edit-slug').value.trim().toLowerCase();
         const title = document.getElementById('edit-title').value.trim();
-        const description = document.getElementById('edit-description').value.trim() || null;
+        const description = document.getElementById('edit-description').value.trim();
+        const sortOrder = parseInt(document.getElementById('edit-sort').value) || 0;
 
-        if (!title) {
-            alert("標題欄位請勿留白！");
+        if (!slug || !title) {
+            alert("別名和標題欄位請勿留白！");
+            return;
+        }
+
+        const slugRegex = /^[a-z0-9-]+$/;
+        if (!slugRegex.test(slug)) {
+            alert("分類別名只能包含英文小寫、數字與連字號");
             return;
         }
 
         showStatus("正在更新雲端...", false);
-        closeEditModal();
 
         const { error } = await supabaseClient
             .from('article_categories')
-            .update({ title, description })
-            .eq('id', editingArticleId);
+            .update({ slug, title, description: description || null, sort_order: sortOrder })
+            .eq('id', currentEditingId);
 
         if (error) {
-            showStatus(`編輯失敗：${error.message}`, true);
+            if (error.code === '23505') {
+                showStatus(`更新失敗：別名「${slug}」已經存在了！`, true);
+            } else {
+                showStatus(`更新失敗：${error.message}`, true);
+            }
         } else {
-            showStatus(`🎉 已成功更新文章標題`);
-            fetchArticles(); // 刷新列表
+            showStatus(`🎉 成功更新文章分類：${title}`);
+            cancelEdit();
+            fetchCategories(); // 刷新列表
         }
     }
 
-    // 6. 處理刪除文章標題
-    async function handleDeleteArticle(id, code) {
-        const confirmCheck = confirm(`⚠️ 確定要刪除「${code}」這個文章標題嗎？\n\n注意：此操作無法復原。`);
+    // 5. 取消編輯
+    function cancelEdit() {
+        currentEditingId = null;
+        document.getElementById('edit-form').classList.remove('active');
+        document.getElementById('edit-slug').value = '';
+        document.getElementById('edit-title').value = '';
+        document.getElementById('edit-description').value = '';
+        document.getElementById('edit-sort').value = '0';
+    }
+
+    // 6. 處理刪除文章分類
+    async function handleDeleteCategory() {
+        const id = this.getAttribute('data-id');
+        const slug = this.getAttribute('data-slug');
+
+        if (!id || !slug) return;
+
+        const confirmCheck = confirm(`⚠️ 確定要刪除「${slug}」這個文章分類嗎？`);
         if (!confirmCheck) return;
 
-        showStatus(`正在刪除文章標題 ${code}...`, false);
+        showStatus(`正在刪除文章分類 ${slug}...`, false);
 
         const { error } = await supabaseClient
             .from('article_categories')
@@ -284,8 +330,8 @@
         if (error) {
             showStatus(`刪除失敗：${error.message}`, true);
         } else {
-            showStatus(`🎉 已成功刪除文章標題：${code}`);
-            fetchArticles(); // 刷新列表
+            showStatus(`🎉 已成功刪除文章分類：${slug}`);
+            fetchCategories(); // 刷新列表
         }
     }
 
