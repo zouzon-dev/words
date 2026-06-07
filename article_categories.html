@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章標題管理系統</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #f4f6f9; padding: 40px 20px; display: flex; justify-content: center; }
+        .container { max-width: 700px; width: 100%; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+        label { font-weight: bold; color: #4a5568; font-size: 14px; }
+        input[type="text"], textarea { padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 14px; outline: none; font-family: inherit; }
+        input[type="text"]:focus, textarea:focus { border-color: #3498db; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1); }
+        textarea { resize: vertical; min-height: 80px; }
+        
+        .btn-add { padding: 12px; font-size: 16px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; transition: background-color 0.3s; }
+        .btn-add:hover { background-color: #2980b9; }
+        .btn-add:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+        
+        .list-section { margin-top: 30px; }
+        .list-title { font-weight: bold; margin-bottom: 10px; color: #1a1a1a; border-bottom: 1px solid #eaeaea; padding-bottom: 5px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        th { background-color: #f8fafc; color: #64748b; font-weight: bold; }
+        
+        .btn-edit, .btn-delete { border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-edit { background-color: #f59e0b; color: white; }
+        .btn-edit:hover { background-color: #d97706; }
+        .btn-delete { background-color: #ef4444; color: white; }
+        .btn-delete:hover { background-color: #dc2626; }
+        .btn-delete:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+
+        .status { margin-top: 20px; padding: 12px; border-radius: 4px; display: none; font-weight: bold; font-size: 14px; }
+        .success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefeff; margin: 10% auto; padding: 20px; border: 1px solid #888; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: #000; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .btn-modal { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .btn-modal-cancel { background-color: #cbd5e1; color: #1a1a1a; }
+        .btn-modal-cancel:hover { background-color: #a0aec0; }
+        .btn-modal-save { background-color: #3498db; color: white; }
+        .btn-modal-save:hover { background-color: #2980b9; }
+
+        .action-buttons { display: flex; gap: 8px; justify-content: center; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container">
+    <h2>📚 文章標題管理系統</h2>
+    
+    <div style="background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 20px;">
+        <h3 style="margin-top: 0; font-size: 16px; color: #334155;">➕ 新增文章標題</h3>
+        <div class="form-group">
+            <label for="article-code">文章代碼 (code) <span style="color:#ef4444; font-size:12px;">*必填，限英文小寫、數字，不能重複</span></label>
+            <input type="text" id="article-code" placeholder="例如: article_001, reading_101">
+        </div>
+        <div class="form-group">
+            <label for="article-title">文章標題 (title) <span style="color:#ef4444; font-size:12px;">*必填</span></label>
+            <input type="text" id="article-title" placeholder="例如: 英文時事閱讀, 經典小說選讀">
+        </div>
+        <div class="form-group">
+            <label for="article-description">文章描述 (description)</label>
+            <textarea id="article-description" placeholder="選填：簡短描述此文章的內容"></textarea>
+        </div>
+        <button id="add-btn" class="btn-add">儲存並建立文章標題</button>
+    </div>
+
+    <div id="status-box" class="status"></div>
+
+    <div class="list-section">
+        <div class="list-title">📋 目前雲端現有文章標題</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>代碼 (code)</th>
+                    <th>標題 (title)</th>
+                    <th style="width: 150px; text-align: center;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="article-table-body">
+                <tr>
+                    <td colspan="3" style="text-align: center; color: #94a3b8;">文章標題清單載入中...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 編輯模態框 -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 style="margin-top: 0; color: #1a1a1a;">編輯文章標題</h3>
+        <div class="form-group">
+            <label for="edit-code">文章代碼 (code)</label>
+            <input type="text" id="edit-code" placeholder="代碼" disabled style="background-color: #f3f4f6; cursor: not-allowed;">
+        </div>
+        <div class="form-group">
+            <label for="edit-title">文章標題 (title) <span style="color:#ef4444; font-size:12px;">*必填</span></label>
+            <input type="text" id="edit-title" placeholder="文章標題">
+        </div>
+        <div class="form-group">
+            <label for="edit-description">文章描述 (description)</label>
+            <textarea id="edit-description" placeholder="文章描述"></textarea>
+        </div>
+        <div class="modal-buttons">
+            <button class="btn-modal btn-modal-cancel" onclick="closeEditModal()">取消</button>
+            <button class="btn-modal btn-modal-save" onclick="handleSaveEdit()">儲存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    
+    let supabaseClient;
+    let editingArticleId = null;
+    
+    window.onload = function() {
+        if (typeof window.supabase !== 'undefined') {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: { persistSession: false }
+            });
+            
+            // 綁定按鈕事件
+            document.getElementById('add-btn').addEventListener('click', handleAddArticle);
+            document.querySelector('.close').addEventListener('click', closeEditModal);
+            window.addEventListener('click', function(event) {
+                const modal = document.getElementById('editModal');
+                if (event.target == modal) closeEditModal();
+            });
+            
+            // 載入清單
+            fetchArticles();
+        } else {
+            alert("錯誤：無法載入 Supabase SDK。");
+        }
+    };
+
+    // 1. 撈取雲端所有文章標題並渲染表格
+    async function fetchArticles() {
+        const tbody = document.getElementById('article-table-body');
+        
+        const { data, error } = await supabaseClient
+            .from('article_categories')
+            .select('id, code, title, description')
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #ef4444;">載入失敗：${error.message}</td></tr>`;
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">目前沒有任何文章標題</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.forEach(article => {
+            const tr = document.createElement('tr');
+            
+            tr.innerHTML = `
+                <td><strong>${article.code}</strong></td>
+                <td>${article.title}</td>
+                <td style="text-align: center;">
+                    <div class="action-buttons">
+                        <button class="btn-edit" onclick="openEditModal(${article.id}, '${article.code}', '${article.title.replace(/'/g, "\\'")}', '${(article.description || '').replace(/'/g, "\\'")}')">編輯</button>
+                        <button class="btn-delete" onclick="handleDeleteArticle(${article.id}, '${article.code}')">刪除</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 2. 處理新增文章標題
+    async function handleAddArticle() {
+        const codeInput = document.getElementById('article-code');
+        const titleInput = document.getElementById('article-title');
+        const descInput = document.getElementById('article-description');
+        
+        const code = codeInput.value.trim().toLowerCase(); // 自動轉小寫防呆
+        const title = titleInput.value.trim();
+        const description = descInput.value.trim() || null;
+
+        if (!code || !title) {
+            alert("代碼和標題欄位請勿留白！");
+            return;
+        }
+
+        // 檢查 code 格式（只允許英文、數字、底線）
+        const codeRegex = /^[a-z0-9_]+$/;
+        if (!codeRegex.test(code)) {
+            alert("文章代碼只能包含英文小寫、數字與底線（例如: article_001）");
+            return;
+        }
+
+        showStatus("正在寫入雲端...", false);
+
+        const { error } = await supabaseClient
+            .from('article_categories')
+            .insert([{ code, title, description }]);
+
+        if (error) {
+            if (error.code === '23505') { // PostgreSQL 唯一值衝突代碼
+                showStatus(`建立失敗：代碼「${code}」已經存在了！`, true);
+            } else {
+                showStatus(`建立失敗：${error.message}`, true);
+            }
+        } else {
+            showStatus(`🎉 成功建立文章標題：${title} (${code})`);
+            codeInput.value = '';
+            titleInput.value = '';
+            descInput.value = '';
+            fetchArticles(); // 刷新列表
+        }
+    }
+
+    // 3. 打開編輯模態框
+    function openEditModal(id, code, title, description) {
+        editingArticleId = id;
+        document.getElementById('edit-code').value = code;
+        document.getElementById('edit-title').value = title;
+        document.getElementById('edit-description').value = description || '';
+        document.getElementById('editModal').style.display = 'block';
+    }
+
+    // 4. 關閉編輯模態框
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+        editingArticleId = null;
+    }
+
+    // 5. 處理編輯保存
+    async function handleSaveEdit() {
+        if (!editingArticleId) return;
+
+        const title = document.getElementById('edit-title').value.trim();
+        const description = document.getElementById('edit-description').value.trim() || null;
+
+        if (!title) {
+            alert("標題欄位請勿留白！");
+            return;
+        }
+
+        showStatus("正在更新雲端...", false);
+        closeEditModal();
+
+        const { error } = await supabaseClient
+            .from('article_categories')
+            .update({ title, description })
+            .eq('id', editingArticleId);
+
+        if (error) {
+            showStatus(`編輯失敗：${error.message}`, true);
+        } else {
+            showStatus(`🎉 已成功更新文章標題`);
+            fetchArticles(); // 刷新列表
+        }
+    }
+
+    // 6. 處理刪除文章標題
+    async function handleDeleteArticle(id, code) {
+        const confirmCheck = confirm(`⚠️ 確定要刪除「${code}」這個文章標題嗎？\n\n注意：此操作無法復原。`);
+        if (!confirmCheck) return;
+
+        showStatus(`正在刪除文章標題 ${code}...`, false);
+
+        const { error } = await supabaseClient
+            .from('article_categories')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            showStatus(`刪除失敗：${error.message}`, true);
+        } else {
+            showStatus(`🎉 已成功刪除文章標題：${code}`);
+            fetchArticles(); // 刷新列表
+        }
+    }
+
+    // 狀態提示小工具
+    function showStatus(message, isError = false) {
+        const box = document.getElementById('status-box');
+        box.style.display = 'block';
+        box.className = `status ${isError ? 'error' : 'success'}`;
+        box.innerHTML = message;
+    }
+</script>
+
+</body>
+</html>
