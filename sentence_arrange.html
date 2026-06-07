@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>英文句子重組挑戰 (語音提示版)</title>
+    <title>英文句子重組挑戰 (語音多速版)</title>
     <style>
         * {
             margin: 0;
@@ -102,7 +102,13 @@
             transform: translateY(-1px);
         }
 
-        /* 提示按鈕專用樣式 */
+        /* 語音控制與速度面板 */
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .hint-btn {
             background: #0ea5e9;
             color: white;
@@ -113,6 +119,34 @@
 
         .hint-btn:hover {
             background: #0284c7;
+        }
+
+        .speed-panel {
+            display: flex;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            gap: 2px;
+        }
+
+        .speed-btn {
+            background: transparent;
+            color: #475569;
+            padding: 4px 10px;
+            font-size: 12px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .speed-btn:hover {
+            background: #e2e8f0;
+            transform: none;
+        }
+
+        .speed-btn.active {
+            background: #4f46e5;
+            color: white;
         }
 
         /* 核心單字顯示區 */
@@ -173,7 +207,6 @@
             border-left: 5px solid #4f46e5;
         }
 
-        /* 放置框與單字卡容器 */
         .slots-container, .words-container {
             display: flex;
             flex-wrap: wrap;
@@ -233,7 +266,6 @@
             opacity: 0.4;
         }
 
-        /* 答案反饋 */
         .result-message {
             text-align: center;
             font-size: 18px;
@@ -296,7 +328,15 @@
             <div id="game-zone" class="game-zone">
                 <div class="quiz-header-row">
                     <div class="quiz-progress" id="quiz-progress">題目： 0 / 0</div>
-                    <button id="speak-hint-btn" class="hint-btn">🔊 聽整句發音提示</button>
+                    
+                    <div class="audio-controls">
+                        <div class="speed-panel">
+                            <button class="speed-btn" onclick="setSpeed(0.5, this)">🐌 0.5x</button>
+                            <button class="speed-btn" onclick="setSpeed(0.8, this)">🚶 0.8x</button>
+                            <button class="speed-btn active" onclick="setSpeed(1.0, this)">⚡ 1.0x</button>
+                        </div>
+                        <button id="speak-hint-btn" class="hint-btn">🔊 聽提示</button>
+                    </div>
                 </div>
                 
                 <div class="target-word-banner">
@@ -325,26 +365,26 @@
     </div>
 
     <script>
-        // ==================== Supabase 設定 ====================
         const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
        
         let supabaseClient = null;
         let currentUser = null;
         
-        // ==================== 遊戲狀態 ====================
         let quizWords = [];        
         let currentIndex = 0;     
         let targetSentenceWords = []; 
         let rawFullSentence = "";   
         let draggedElement = null; 
 
+        // 全局語音速度設定 (預設為 1.0)
+        let currentSpeechRate = 1.0;
+
         window.onload = async function () {
             if (typeof window.supabase === 'undefined') {
                 showError('系統載入失敗！無法連線至資料庫。');
                 return;
             }
-
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -360,12 +400,26 @@
 
         function bindEvents() {
             document.getElementById('start-game-btn').addEventListener('click', startQuizGame);
-            // 綁定發音提示按鈕事件
             document.getElementById('speak-hint-btn').addEventListener('click', () => {
-                if (rawFullSentence) {
-                    speakText(rawFullSentence);
-                }
+                if (rawFullSentence) speakText(rawFullSentence);
             });
+        }
+
+        // ==================== 切換語音速度功能 ====================
+        function setSpeed(rate, buttonEl) {
+            currentSpeechRate = rate;
+            
+            // 移除其他按鈕的 active 狀態
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            // 點選的按鈕變成高亮狀態
+            buttonEl.classList.add('active');
+
+            // 調整速度後，如果正在看題目，就自動播放一次提示句子讓使用者習慣新速度
+            if (rawFullSentence) {
+                speakText(rawFullSentence);
+            }
         }
 
         async function loadCategories() {
@@ -425,7 +479,6 @@
             loadQuestion();
         }
 
-        // ==================== 載入題目 ====================
         function loadQuestion() {
             if (currentIndex >= quizWords.length) {
                 document.getElementById('game-zone').style.display = 'none';
@@ -436,16 +489,12 @@
 
             const currentQuiz = quizWords[currentIndex];
             document.getElementById('quiz-progress').innerText = `題目： ${currentIndex + 1} / ${quizWords.length}`;
-            
             document.getElementById('target-word-en').innerText = currentQuiz.en;
             document.getElementById('target-word-ch').innerText = currentQuiz.ch;
-            
             document.getElementById('hint-ch').innerText = `💡 中文提示：${currentQuiz.sentence_ch}`;
             document.getElementById('result-message').innerHTML = '';
 
-            // 儲存原始句子供發音提示與最後全對朗讀使用
             rawFullSentence = currentQuiz.sentence_en;
-
             const cleanSentence = currentQuiz.sentence_en.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").trim();
             targetSentenceWords = cleanSentence.split(/\s+/);
 
@@ -454,7 +503,6 @@
                 scrambledWords.sort(() => Math.random() - 0.5);
             }
 
-            // 生成下方答案空格 (Slots)
             const slotsContainer = document.getElementById('slots-container');
             slotsContainer.innerHTML = '';
             targetSentenceWords.forEach((_, index) => {
@@ -470,7 +518,6 @@
                 slotsContainer.appendChild(slot);
             });
 
-            // 生成上方待選單字卡 (Words Pool)
             const wordsContainer = document.getElementById('words-container');
             wordsContainer.innerHTML = '';
             scrambledWords.forEach((word, index) => {
@@ -490,19 +537,22 @@
             wordsContainer.addEventListener('drop', dropToPool);
         }
 
-        // ==================== 語音 TTS 核心功能 ====================
+        // ==================== 升級變速語音 TTS 核心 ====================
         function speakText(text) {
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // 播放新語音前先切斷舊語音，避免堆疊
+                window.speechSynthesis.cancel();
                 
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'en-US'; 
-                utterance.rate = 0.9;     
+                
+                // 套用使用者當前選取的播放速率 (0.5, 0.8, 1.0)
+                utterance.rate = currentSpeechRate;     
+                
                 window.speechSynthesis.speak(utterance);
             }
         }
 
-        // ==================== Drag & Drop 監聽 ====================
+        // ==================== Drag & Drop 核心邏輯 ====================
         function dragStart(e) {
             draggedElement = this;
             this.classList.add('dragging');
@@ -528,31 +578,52 @@
             this.classList.remove('drag-over');
         }
 
-        // 放置到下方答案空格
         function dropToSlot(e) {
             e.preventDefault();
             this.classList.remove('drag-over');
 
+            const targetSlotIndex = parseInt(this.dataset.slotIndex);
+            const slots = Array.from(document.querySelectorAll('.word-slot'));
+            
+            // 拖曳置入單字發音（套用最新速度）
+            speakText(draggedElement.innerText);
+
             if (this.children.length === 0) {
                 this.appendChild(draggedElement);
-                
-                // 單字放進空格時發音
-                speakText(draggedElement.innerText);
-                
-                checkAnswer(); 
+            } else {
+                let currentIncoming = draggedElement;
+                let overflowWord = null;
+
+                for (let i = targetSlotIndex; i < slots.length; i++) {
+                    const currentSlot = slots[i];
+                    if (currentSlot.children.length === 0) {
+                        currentSlot.appendChild(currentIncoming);
+                        currentIncoming = null;
+                        break;
+                    } else {
+                        const existingWord = currentSlot.children[0];
+                        currentSlot.appendChild(currentIncoming);
+                        currentIncoming = existingWord;
+                    }
+                }
+
+                if (currentIncoming !== null) {
+                    overflowWord = currentIncoming;
+                    document.getElementById('words-container').appendChild(overflowWord);
+                }
             }
+
+            checkAnswer(); 
         }
 
-        // 拖回上方備選庫
         function dropToPool(e) {
             e.preventDefault();
-            if (e.target.id === 'words-container') {
-                this.appendChild(draggedElement);
+            if (e.target.id === 'words-container' || e.target.classList.contains('drag-word')) {
+                document.getElementById('words-container').appendChild(draggedElement);
                 checkAnswer();
             }
         }
 
-        // ==================== 檢查驗證與整句發音 ====================
         function checkAnswer() {
             const slots = document.querySelectorAll('.word-slot');
             let currentUserWords = [];
@@ -572,17 +643,20 @@
                 
                 if (isCorrect) {
                     document.getElementById('result-message').innerHTML = '<span class="success-text">🎉 太厲害了！完全正確！🔊 正在為您朗讀整句...</span>';
-                    
                     document.querySelectorAll('.drag-word').forEach(card => card.draggable = false);
 
-                    // 全對時整句發音
+                    // 全對時整句朗讀（套用最新速度）
                     speakText(rawFullSentence);
 
-                    // 延遲 3.5 秒跳轉下一題
+                    // 依據語速動態延長跳下一題的時間（慢速需要更多時間唸完）
+                    let delayTime = 3500;
+                    if (currentSpeechRate === 0.8) delayTime = 4500;
+                    if (currentSpeechRate === 0.5) delayTime = 6500;
+
                     setTimeout(() => {
                         currentIndex++;
                         loadQuestion();
-                    }, 3500);
+                    }, delayTime);
                 }
             }
         }
