@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英文單字重組拼句練習 (可調語速版)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+        .upload-area {
+            margin-bottom: 25px;
+            padding: 15px;
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            background-color: #f0f7fc;
+        }
+        
+        /* 句子卡片 */
+        .sentence-card {
+            background-color: #fff;
+            border-top: 4px solid #3498db;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: none;
+        }
+        .translation {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        /* 控制列：包含發音按鈕與語速選擇 */
+        .audio-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .audio-btn {
+            background-color: #e67e22;
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: background 0.2s;
+        }
+        .audio-btn:hover {
+            background-color: #d35400;
+        }
+
+        /* 語速選擇器樣式 */
+        .rate-select-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+            color: #555;
+            background-color: #f8f9fa;
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid #ddd;
+        }
+        .rate-select {
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            font-weight: bold;
+            color: #333;
+            cursor: pointer;
+        }
+
+        /* 拖曳區域通用樣式 */
+        .word-pool, .drop-zone-area {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            min-height: 60px;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        /* 上方單字庫 */
+        .word-pool {
+            background-color: #f9f9f9;
+            border: 1px dashed #ccc;
+        }
+
+        /* 下方目標空格區 */
+        .drop-zone-area {
+            background-color: #edf2f7;
+            border: 2px solid #cbd5e0;
+        }
+
+        /* 空格盒子 */
+        .slot-box {
+            width: 100px;
+            min-height: 45px;
+            border: 2px dashed #a0aec0;
+            border-radius: 6px;
+            background-color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        .slot-box.drag-over {
+            background-color: #e2e8f0;
+            border-color: #4a5568;
+            transform: scale(1.05);
+        }
+
+        /* 可拖曳的單字卡片 */
+        .word-card {
+            background-color: #3498db;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: grab;
+            font-size: 1.2rem;
+            font-weight: 500;
+            user-select: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: background-color 0.2s;
+        }
+        .word-card:active {
+            cursor: grabbing;
+        }
+        .word-card:hover {
+            background-color: #2980b9;
+        }
+        .word-card.dragging {
+            opacity: 0.4;
+        }
+
+        /* 訊息提示 */
+        .result-msg {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 15px;
+            height: 30px;
+        }
+        .correct-text { color: #2ecc71; }
+        .wrong-text { color: #e74c3c; }
+
+        .progress {
+            margin-top: 20px;
+            font-size: 1rem;
+            color: #7f8c8d;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>英文單字重組拼句練習</h1>
+    
+    <div class="upload-area" id="uploadArea">
+        <label for="fileInput" style="font-weight: bold; color: #2c3e50; margin-right: 10px;">請匯入您的題目檔案：</label>
+        <input type="file" id="fileInput" accept=".json">
+    </div>
+
+    <div class="sentence-card" id="sentenceCard">
+        <div class="translation" id="translationText"></div>
+        
+        <div class="audio-controls">
+            <button class="audio-btn" onclick="playCurrentSentence()">🔊 聽整句讀音提示</button>
+            <div class="rate-select-wrapper">
+                <span>⏱️ 語速：</span>
+                <select id="speechRateSelect" class="rate-select">
+                    <option value="0.5">0.5x (慢速)</option>
+                    <option value="0.8">0.8x (微慢)</option>
+                    <option value="1.0" selected>1.0x (正常)</option>
+                </select>
+            </div>
+        </div>
+        
+        <p style="text-align:left; color:#7f8c8d; font-size:0.9rem; margin:0 0 5px 15px;">隨機單字庫 (點擊單字可發音)：</p>
+        <div class="word-pool" id="wordPool"></div>
+        
+        <p style="text-align:left; color:#7f8c8d; font-size:0.9rem; margin:20px 0 5px 15px;">請將單字拖曳至下方空格重組句子 (空格內單字可互換)：</p>
+        <div class="drop-zone-area" id="dropZoneArea"></div>
+        
+        <div class="result-msg" id="resultMsg"></div>
+    </div>
+    
+    <div class="progress" id="progress">進度：0 / 0</div>
+</div>
+
+<script>
+    let sentences = [];
+    let currentIndex = 0; 
+    let originalWordsOrder = []; 
+    let isTransitioning = false;
+    let draggedElement = null;   
+
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const sentenceCard = document.getElementById('sentenceCard');
+    const translationText = document.getElementById('translationText');
+    const wordPool = document.getElementById('wordPool');
+    const dropZoneArea = document.getElementById('dropZoneArea');
+    const resultMsg = document.getElementById('resultMsg');
+    const progressEl = document.getElementById('progress');
+    const speechRateSelect = document.getElementById('speechRateSelect');
+
+    // 讀取 JSON 檔案
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                sentences = JSON.parse(event.target.result);
+                if (Array.isArray(sentences) && sentences.length > 0) {
+                    uploadArea.style.display = 'none';
+                    sentenceCard.style.display = 'block';
+                    currentIndex = 0;
+                    loadSentence();
+                } else {
+                    alert("JSON 格式不正確，必須是陣列格式！");
+                }
+            } catch (error) {
+                alert("無法解析此檔案。");
+                console.error(error);
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    // 載入當前題目
+    function loadSentence() {
+        if (currentIndex >= sentences.length) {
+            currentIndex = 0; 
+        }
+
+        isTransitioning = false;
+        resultMsg.innerHTML = "";
+        wordPool.innerHTML = "";
+        dropZoneArea.innerHTML = "";
+
+        const currentData = sentences[currentIndex];
+        
+        translationText.textContent = `${currentIndex + 1}. ${currentData.Chinese}`;
+        originalWordsOrder = currentData.English.split(/\s+/).filter(w => w.length > 0);
+        
+        let shuffledWords = [...originalWordsOrder];
+        shuffleArray(shuffledWords);
+
+        // 1. 渲染上方的隨機單字庫
+        shuffledWords.forEach((word, index) => {
+            const wordEl = document.createElement('div');
+            wordEl.className = 'word-card';
+            wordEl.textContent = word;
+            wordEl.draggable = true;
+            wordEl.id = `word-${index}-${Date.now()}`; 
+
+            wordEl.addEventListener('click', (e) => {
+                if(isTransitioning) return;
+                speak(cleanString(word));
+            });
+
+            wordEl.addEventListener('dragstart', handleDragStart);
+            wordEl.addEventListener('dragend', handleDragEnd);
+
+            wordPool.appendChild(wordEl);
+        });
+
+        // 2. 渲染下方的目標空格
+        originalWordsOrder.forEach((_, index) => {
+            const slot = document.createElement('div');
+            slot.className = 'slot-box';
+            slot.dataset.index = index;
+            slot.style.width = `${Math.max(80, originalWordsOrder[index].length * 15)}px`;
+
+            slot.addEventListener('dragover', handleDragOver);
+            slot.addEventListener('dragleave', handleDragLeave);
+            slot.addEventListener('drop', handleDrop);
+
+            dropZoneArea.appendChild(slot);
+        });
+
+        updateProgress();
+        
+        // 自動播放整句發音
+        setTimeout(() => {
+            speak(currentData.English);
+        }, 300);
+    }
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    // --- Drag & Drop 核心邏輯 ---
+    function handleDragStart(e) {
+        if (isTransitioning) {
+            e.preventDefault();
+            return;
+        }
+        draggedElement = this;
+        this.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', this.id);
+    }
+
+    function handleDragEnd() {
+        this.classList.remove('dragging');
+        document.querySelectorAll('.slot-box').forEach(s => s.classList.remove('drag-over'));
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault(); 
+        this.classList.add('drag-over');
+    }
+
+    function handleDragLeave() {
+        this.classList.remove('drag-over');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        
+        if (!draggedElement) return;
+
+        const existingChild = this.querySelector('.word-card');
+        const originParent = draggedElement.parentElement;
+
+        if (existingChild) {
+            if (originParent.classList.contains('slot-box')) {
+                originParent.appendChild(existingChild);
+            } else {
+                wordPool.appendChild(existingChild);
+            }
+        }
+        
+        this.appendChild(draggedElement);
+        checkAnswer();
+    }
+
+    // 檢查答案
+    function checkAnswer() {
+        const slots = dropZoneArea.querySelectorAll('.slot-box');
+        let filledCount = 0;
+        let currentUserAnswer = [];
+
+        slots.forEach(slot => {
+            const wordCard = slot.querySelector('.word-card');
+            if (wordCard) {
+                filledCount++;
+                currentUserAnswer.push(wordCard.textContent);
+            } else {
+                currentUserAnswer.push("");
+            }
+        });
+
+        if (filledCount < originalWordsOrder.length) {
+            resultMsg.innerHTML = "";
+            return;
+        }
+
+        let isAllCorrect = true;
+        for (let i = 0; i < originalWordsOrder.length; i++) {
+            if (cleanString(currentUserAnswer[i]) !== cleanString(originalWordsOrder[i])) {
+                isAllCorrect = false;
+                break;
+            }
+        }
+
+        if (isAllCorrect) {
+            resultMsg.innerHTML = "<span class='correct-text'>🎉 太棒了！完全正確！</span>";
+            nextQuestion();
+        } else {
+            resultMsg.innerHTML = "<span class='wrong-text'>❌ 順序好像不對喔，再試試看！</span>";
+        }
+    }
+
+    function nextQuestion() {
+        if (isTransitioning) return;
+        isTransitioning = true;
+        
+        document.querySelectorAll('.word-card').forEach(w => w.draggable = false);
+        speak(sentences[currentIndex].English); 
+        
+        setTimeout(() => {
+            currentIndex++;
+            loadSentence();
+        }, 2000);
+    }
+
+    function playCurrentSentence() {
+        if (sentences[currentIndex]) {
+            speak(sentences[currentIndex].English);
+        }
+    }
+
+    function updateProgress() {
+        progressEl.textContent = `進度：${currentIndex + 1} / ${sentences.length}`;
+    }
+
+    // TTS 發音（已加入即時讀取下拉選單速率的功能）
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            
+            // 關鍵修改：從網頁下拉選單即時取得使用者選擇的語速 (0.5, 0.8 或 1.0)
+            const currentRate = parseFloat(speechRateSelect.value) || 1.0;
+            utterance.rate = currentRate;
+            
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    function cleanString(str) {
+        return str.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").toLowerCase().trim();
+    }
+</script>
+
+</body>
+</html>

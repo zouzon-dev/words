@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英文打字練習 (範圍自訂聯打版)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+            position: relative;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+        /* 檔案上傳與範圍設定區 */
+        .config-area {
+            margin-bottom: 25px;
+            padding: 20px;
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            background-color: #f0f7fc;
+        }
+        .range-selector {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        select, button {
+            padding: 6px 12px;
+            font-size: 1rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        /* 三句容器組合 */
+        .sentence-list {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        /* 單一句子卡片 */
+        .sentence-card {
+            background-color: #fafbfc;
+            border-left: 5px solid #ddd;
+            padding: 15px 20px;
+            border-radius: 0 8px 8px 0;
+            transition: all 0.3s ease;
+            opacity: 0.35;
+        }
+        .sentence-card.active {
+            background-color: #fff;
+            border-left-color: #3498db;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
+            opacity: 1;
+        }
+        .translation {
+            font-size: 1.1rem;
+            color: #555;
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+        .sentence-card.active .translation {
+            color: #2c3e50;
+        }
+        /* 字元對齊區域 */
+        .typing-area {
+            display: flex;
+            flex-wrap: wrap;
+            row-gap: 10px;
+            column-gap: 10px;
+            font-size: 1.6rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            min-height: 40px;
+        }
+        .word-box {
+            display: flex;
+        }
+        .char-box {
+            position: relative;
+            width: 18px;
+            text-align: center;
+            color: #bbb;
+        }
+        .sentence-card:not(.active) .char-box {
+            color: #aaa;
+        }
+        /* 閃爍游標 */
+        .char-box.current::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -2px;
+            width: 100%;
+            height: 3px;
+            background-color: #3498db;
+            animation: blink 0.8s infinite;
+        }
+        .char-box.correct {
+            color: #2ecc71;
+        }
+        .char-box.wrong {
+            color: #e74c3c;
+            background-color: #fce4e4;
+        }
+        #hiddenInput {
+            position: absolute;
+            opacity: 0;
+            z-index: -1;
+        }
+        .progress {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #999;
+            text-align: center;
+        }
+        .focus-tip {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-top: 15px;
+            line-height: 1.5;
+            text-align: center;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" onclick="focusInput()">
+    <h1>英文打字發音練習 (自訂範圍版)</h1>
+    
+    <div class="config-area" id="configArea">
+        <div>
+            <label for="fileInput" style="font-weight: bold; color: #2c3e50; margin-right: 10px;">步驟 1：請匯入題目檔案：</label>
+            <input type="file" id="fileInput" accept=".json">
+        </div>
+        
+        <div class="range-selector" id="rangeSelector" style="display: none;">
+            <label>步驟 2：選擇練習範圍：第</label>
+            <select id="startIdx"></select>
+            <label>句 到 第</label>
+            <select id="endIdx"></select>
+            <label>句</label>
+            <button id="startBtn" onclick="applyRange()">開始練習</button>
+        </div>
+    </div>
+
+    <div class="sentence-list" id="sentenceList">
+        <div style="text-align: center; color: #999; padding: 20px;">請先匯入 u6-1.json 檔案並設定範圍</div>
+    </div>
+    
+    <input type="text" id="hiddenInput" autocomplete="off" disabled>
+    
+    <div class="progress" id="progress">0 / 0</div>
+    <div class="focus-tip" id="focusTip" style="display:none;">
+        💡 提示：點擊網頁任意空白處可聚焦打字。<br>
+        <span style="color: #e67e22;">⏩ 按下 【Enter 鍵】 可以直接強制跳到下一句喔！</span>
+    </div>
+</div>
+
+<script>
+    let allSentences = [];     // 原始完整的 JSON 資料
+    let practiceSentences = [];// 經篩選後的當前練習目標資料
+    
+    let currentIndex = 0;      // 在 practiceSentences 裡面的當前索引
+    let typedText = "";
+    
+    let wordEndIndices = []; 
+    let wordTexts = [];
+    let lastPlayedWordIndex = -1;
+    let isTransitioning = false;
+
+    const fileInput = document.getElementById('fileInput');
+    const configArea = document.getElementById('configArea');
+    const rangeSelector = document.getElementById('rangeSelector');
+    const startIdxSelect = document.getElementById('startIdx');
+    const endIdxSelect = document.getElementById('endIdx');
+    const sentenceListEl = document.getElementById('sentenceList');
+    const hiddenInput = document.getElementById('hiddenInput');
+    const progressEl = document.getElementById('progress');
+    const focusTip = document.getElementById('focusTip');
+
+    // 1. 檔案讀取
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                allSentences = JSON.parse(event.target.result);
+                if (Array.isArray(allSentences) && allSentences.length > 0) {
+                    // 初始化選單
+                    populateDropdowns(allSentences.length);
+                    rangeSelector.style.display = 'flex'; // 秀出範圍選擇器
+                } else {
+                    alert("JSON 格式不正確，必須是陣列格式！");
+                }
+            } catch (error) {
+                alert("無法解析此檔案。");
+                console.error(error);
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    // 動態產生下拉選單選項
+    function populateDropdowns(total) {
+        startIdxSelect.innerHTML = "";
+        endIdxSelect.innerHTML = "";
+        for(let i = 1; i <= total; i++) {
+            let opt1 = document.createElement('option');
+            opt1.value = i; opt1.textContent = i;
+            startIdxSelect.appendChild(opt1);
+
+            let opt2 = document.createElement('option');
+            opt2.value = i; opt2.textContent = i;
+            // 預設結束點直接選到最後一句
+            if(i === total) opt2.selected = true; 
+            endIdxSelect.appendChild(opt2);
+        }
+    }
+
+    // 2. 確定範圍並切入練習
+    function applyRange() {
+        const start = parseInt(startIdxSelect.value) - 1;
+        const end = parseInt(endIdxSelect.value) - 1;
+
+        if (start > end) {
+            alert("起始句子不能大於結束句子！");
+            return;
+        }
+
+        // 切割出使用者指定的句子範圍，並記錄原始編號
+        practiceSentences = allSentences.slice(start, end + 1).map((item, idx) => {
+            return {
+                ...item,
+                originalNum: start + idx + 1 // 保留原本在 JSON 裡的第幾句編號
+            };
+        });
+
+        // 隱藏設定區，開啟打字鎖定
+        configArea.style.display = 'none';
+        focusTip.style.display = 'block';
+        hiddenInput.disabled = false;
+
+        currentIndex = 0;
+        updateStage();
+    }
+
+    // 3. 三句聯打核心舞台控制
+    function updateStage() {
+        sentenceListEl.innerHTML = "";
+        
+        if (currentIndex >= practiceSentences.length) {
+            // 當前範圍練完，循環回到該範圍的第一題
+            currentIndex = 0;
+        }
+
+        // 撈出要出現在畫面上的三個練習句 index
+        const displayIndices = [currentIndex, currentIndex + 1, currentIndex + 2];
+
+        displayIndices.forEach((idx, order) => {
+            if (idx >= practiceSentences.length) return; // 超過範圍就不畫
+
+            const data = practiceSentences[idx];
+            const isCurrent = (order === 0);
+
+            // 建立卡片
+            const card = document.createElement('div');
+            card.className = `sentence-card ${isCurrent ? 'active' : ''}`;
+
+            // 中文翻譯（顯示原始編號）
+            const trans = document.createElement('div');
+            trans.className = 'translation';
+            trans.textContent = `${data.originalNum}. ${data.Chinese}`;
+            card.appendChild(trans);
+
+            // 英文打字區
+            const tArea = document.createElement('div');
+            tArea.className = 'typing-area';
+            
+            renderSentenceChars(tArea, data.English, isCurrent);
+            card.appendChild(tArea);
+            sentenceListEl.appendChild(card);
+
+            if (isCurrent) {
+                parseWords(data.English);
+            }
+        });
+
+        typedText = "";
+        hiddenInput.value = "";
+        lastPlayedWordIndex = -1;
+        isTransitioning = false;
+        
+        updateProgress();
+        focusInput();
+    }
+
+    // 繪製字元
+    function renderSentenceChars(container, englishText, isCurrent) {
+        const words = englishText.split(/(\s+)/);
+        let globalCharIdx = 0;
+
+        words.forEach(word => {
+            if (word.trim() === "") {
+                const spaceSpan = document.createElement('span');
+                spaceSpan.style.width = '10px';
+                container.appendChild(spaceSpan);
+                if (isCurrent) globalCharIdx += word.length;
+                return;
+            }
+
+            const wordBox = document.createElement('div');
+            wordBox.className = 'word-box';
+
+            for (let i = 0; i < word.length; i++) {
+                const char = word[i];
+                const charBox = document.createElement('div');
+                charBox.className = 'char-box';
+                charBox.textContent = char;
+
+                if (isCurrent) {
+                    charBox.id = `char-${globalCharIdx}`;
+                    if (globalCharIdx < typedText.length) {
+                        if (typedText[globalCharIdx] === char) {
+                            charBox.className += ' correct';
+                        } else {
+                            charBox.className += ' wrong';
+                        }
+                    } else if (globalCharIdx === typedText.length) {
+                        charBox.className += ' current';
+                    }
+                    globalCharIdx++;
+                }
+
+                wordBox.appendChild(charBox);
+            }
+            container.appendChild(wordBox);
+        });
+    }
+
+    function parseWords(sentence) {
+        wordEndIndices = [];
+        wordTexts = [];
+        const regex = /\S+/g;
+        let match;
+        while ((match = regex.exec(sentence)) !== null) {
+            wordTexts.push(match[0]);
+            wordEndIndices.push(match.index + match[0].length);
+        }
+    }
+
+    function updateProgress() {
+        progressEl.textContent = `當前範圍進度：${currentIndex + 1} / ${practiceSentences.length}`;
+    }
+
+    function focusInput() {
+        if (!hiddenInput.disabled) {
+            hiddenInput.focus();
+        }
+    }
+
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.95;
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    function cleanString(str) {
+        return str.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").toLowerCase().trim();
+    }
+
+    function nextQuestion() {
+        if (isTransitioning) return;
+        isTransitioning = true;
+        
+        speak(practiceSentences[currentIndex].English);
+        
+        setTimeout(() => {
+            currentIndex++;
+            updateStage();
+        }, 1500);
+    }
+
+    // 監聽打字輸入
+    hiddenInput.addEventListener('input', (e) => {
+        if (isTransitioning) return;
+
+        const targetSentence = practiceSentences[currentIndex].English;
+        typedText = hiddenInput.value;
+
+        if (typedText.length > targetSentence.length) {
+            typedText = typedText.substring(0, targetSentence.length);
+            hiddenInput.value = typedText;
+        }
+
+        const activeTArea = document.querySelector('.sentence-card.active .typing-area');
+        if (activeTArea) {
+            activeTArea.innerHTML = "";
+            renderSentenceChars(activeTArea, targetSentence, true);
+        }
+
+        checkWordCompletion(targetSentence);
+
+        if (cleanString(typedText) === cleanString(targetSentence)) {
+            nextQuestion();
+        }
+    });
+
+    hiddenInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            nextQuestion();
+        }
+    });
+
+    function checkWordCompletion(targetSentence) {
+        for (let i = 0; i < wordEndIndices.length; i++) {
+            const endIndex = wordEndIndices[i];
+            
+            if (typedText.length >= endIndex && i > lastPlayedWordIndex) {
+                const targetWordPart = targetSentence.substring(endIndex - wordTexts[i].length, endIndex);
+                const typedWordPart = typedText.substring(endIndex - wordTexts[i].length, endIndex);
+
+                if (cleanString(targetWordPart) === cleanString(typedWordPart)) {
+                    lastPlayedWordIndex = i;
+                    if (i < wordEndIndices.length - 1) {
+                        speak(cleanString(wordTexts[i]));
+                    }
+                }
+            }
+        }
+    }
+
+    window.addEventListener('focus', focusInput);
+</script>
+
+</body>
+</html>

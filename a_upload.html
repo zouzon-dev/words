@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV to Supabase Uploader</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 0 20px; line-height: 1.6; }
+        textarea { width: 100%; height: 200px; margin-bottom: 10px; font-family: monospace; }
+        button { background-color: #3ecf8e; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; font-size: 16px; }
+        button:disabled { background-color: #ccc; }
+        #status { margin-top: 20px; padding: 15px; border-radius: 5px; display: none; white-space: pre-line; }
+        .error { background-color: #fee2e2; color: #dc2626; border: 1px solid #ef4444; }
+        .success { background-color: #dcfce7; color: #166534; border: 1px solid #22c55e; }
+    </style>
+</head>
+<body>
+
+    <h2>上傳 CSV 資料至 sentence_practices</h2>
+    <p>請貼上 CSV 格式（含標題列）：<br>
+       <code>"title","en_text","ch_text","seq_num"</code></p>
+
+    <textarea id="csvInput" placeholder='"My Story","Hello","你好",1
+"My Story","Good morning","早安",2'></textarea>
+
+    <button id="uploadBtn">開始上傳資料</button>
+
+    <div id="status"></div>
+
+    <script>
+        // 1. 初始化 Supabase (把變數名稱改成 supabaseClient 避免與 SDK 衝突)
+        const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+        
+        // 使用全域的 supabase 物件來建立 client
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const uploadBtn = document.getElementById('uploadBtn');
+        const csvInput = document.getElementById('csvInput');
+        const statusDiv = document.getElementById('status');
+
+        // 2. 綁定按鈕點擊事件
+        uploadBtn.addEventListener('click', async () => {
+            const rawData = csvInput.value.trim();
+            if (!rawData) {
+                showStatus('請先貼上內容', 'error');
+                return;
+            }
+
+            uploadBtn.disabled = true;
+            showStatus('解析中並準備上傳...', 'success');
+
+            // 3. 解析 CSV
+            Papa.parse(rawData, {
+                header: true,
+                skipEmptyLines: true,
+                dynamicTyping: true, // 自動把 seq_num 轉成數字
+                complete: async (results) => {
+                    if (results.errors.length > 0) {
+                        showStatus(`CSV 格式錯誤: ${results.errors[0].message}`, 'error');
+                        uploadBtn.disabled = false;
+                        return;
+                    }
+
+                    // 4. 資料轉換 (將 CSV 的 ch_text 對應到資料庫的 zh_text)
+                    const dataToUpload = results.data.map(row => ({
+                        title: row.title,
+                        en_text: row.en_text,
+                        zh_text: row.ch_text || row.zh_text, // 兼容 ch_text 或 zh_text
+                        seq_num: parseInt(row.seq_num)
+                    }));
+
+                    // 5. 上傳至 Supabase
+                    const { data, error } = await supabaseClient
+                        .from('sentence_practices')
+                        .insert(dataToUpload);
+
+                    if (error) {
+                        showStatus(`資料庫錯誤: ${error.message}\n詳情: ${error.details || '無詳細資訊，請檢查 RLS 政策'}`, 'error');
+                    } else {
+                        showStatus(`成功上傳 ${dataToUpload.length} 筆資料！`, 'success');
+                        csvInput.value = ''; // 成功後清空輸入框
+                    }
+                    uploadBtn.disabled = false;
+                },
+                error: (err) => {
+                    showStatus(`解析失敗: ${err.message}`, 'error');
+                    uploadBtn.disabled = false;
+                }
+            });
+        });
+
+        function showStatus(msg, type) {
+            statusDiv.innerText = msg;
+            statusDiv.className = type;
+            statusDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

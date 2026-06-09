@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英文文章句子跟讀練習</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --success-color: #2ec4b6;
+            --recording-color: #e63946;
+            --bg-color: #f8f9fa;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+        .form-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            background-color: #fff;
+        }
+        .practice-card {
+            border: 2px solid #eef2f7;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 20px;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: #fff;
+        }
+        .progress {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+        .en-text {
+            font-size: 22px;
+            font-weight: 600;
+            color: #2b2d42;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        .zh-text {
+            font-size: 16px;
+            color: #6c757d;
+            margin-bottom: 25px;
+        }
+        .user-result {
+            font-size: 16px;
+            italic: true;
+            color: #8d99ae;
+            min-height: 24px;
+            margin-bottom: 20px;
+            padding: 8px;
+            background: #f1f3f5;
+            border-radius: 4px;
+        }
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .btn-record {
+            background-color: var(--success-color);
+        }
+        .btn-record.recording {
+            background-color: var(--recording-color);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎧 英文句子跟讀練習</h1>
+    
+    <div class="form-group">
+        <label for="titleSelect">選擇文章標題：</label>
+        <select id="titleSelect">
+            <option value="">-- 請選擇文章 --</option>
+        </select>
+    </div>
+
+    <div id="practiceArea" class="practice-card hidden">
+        <div>
+            <div class="progress" id="progressText">句子：0 / 0</div>
+            <div class="en-text" id="enText">Loading...</div>
+            <div class="zh-text" id="zhText">Loading...</div>
+        </div>
+
+        <div>
+            <div class="user-result" id="userResult">點擊下方按鈕開始聽寫辨識...</div>
+            
+            <button class="btn" id="playBtn">🔊 播放發音</button>
+            <button class="btn btn-record" id="recordBtn" disabled>🎤 開始口說</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. 初始化 Supabase
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 2. DOM 元素獲取
+    const titleSelect = document.getElementById('titleSelect');
+    const practiceArea = document.getElementById('practiceArea');
+    const progressText = document.getElementById('progressText');
+    const enText = document.getElementById('enText');
+    const zhText = document.getElementById('zhText');
+    const userResult = document.getElementById('userResult');
+    const playBtn = document.getElementById('playBtn');
+    const recordBtn = document.getElementById('recordBtn');
+
+    // 3. 全域變數控制
+    let currentSentences = [];
+    let currentIndex = 0;
+    
+    // 瀏覽器語音 API 宣告
+    const synth = window.speechSynthesis;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'en-US'; // 設定辨識語言為英文
+        recognition.interimResults = false; // 是否需要即時回傳未定案結果
+        recognition.maxAlternatives = 1;
+    } else {
+        alert('您的瀏覽器不支援語音辨識功能 (Speech Recognition)，建議使用 Google Chrome。');
+    }
+
+    // 4. 初始化：載入不重複的文章標題 (Titles)
+    async function loadTitles() {
+        try {
+            // 從 database 撈取獨特的 title 列表
+            const { data, error } = await _supabase
+                .from('sentence_practices')
+                .select('title');
+            
+            if (error) throw error;
+
+            // 過濾重複的 title
+            const uniqueTitles = [...new Set(data.map(item => item.title))];
+            
+            uniqueTitles.forEach(title => {
+                const option = document.createElement('option');
+                option.value = title;
+                option.textContent = title;
+                titleSelect.appendChild(option);
+            });
+        } catch (err) {
+            console.error('載入標題失敗:', err.message);
+            alert('無法從資料庫取得文章列表，請檢查 Supabase 連線或 RLS 設定。');
+        }
+    }
+
+    // 5. 監聽下拉選單：切換文章
+    titleSelect.addEventListener('change', async (e) => {
+        const selectedTitle = e.target.value;
+        if (!selectedTitle) {
+            practiceArea.classList.add('hidden');
+            return;
+        }
+
+        try {
+            // 根據選擇的 title 撈取句子，並依 seq_num 排序
+            const { data, error } = await _supabase
+                .from('sentence_practices')
+                .select('*')
+                .eq('title', selectedTitle)
+                .order('seq_num', { ascending: true });
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                currentSentences = data;
+                currentIndex = 0;
+                practiceArea.classList.remove('hidden');
+                showSentence(currentIndex);
+            } else {
+                alert('該文章內無句子資料。');
+            }
+        } catch (err) {
+            console.error('載入句子失敗:', err.message);
+        }
+    });
+
+    // 6. 渲染當前句子
+    function showSentence(index) {
+        if (index >= currentSentences.length) {
+            alert('🎉 恭喜！您已完成本篇文章的所有句子跟讀！');
+            titleSelect.value = "";
+            practiceArea.classList.add('hidden');
+            return;
+        }
+
+        const current = currentSentences[index];
+        progressText.textContent = `句子：${index + 1} / ${currentSentences.length}`;
+        enText.textContent = current.en_text;
+        zhText.textContent = current.zh_text;
+        userResult.textContent = "請先點擊「🔊 播放發音」聽取句子。";
+        
+        // 重置按鈕狀態
+        recordBtn.disabled = true;
+        recordBtn.classList.remove('recording');
+        recordBtn.textContent = '🎤 開始口說';
+    }
+
+    // 7. 英文句子發音 (TTS)
+    playBtn.addEventListener('click', () => {
+        if (synth.speaking) {
+            synth.cancel(); // 如果正在播放，先停止
+        }
+
+        const utterance = new UtteranceVoice(enText.textContent);
+        
+        utterance.onend = () => {
+            // 播放完畢後，允許使用者點擊口說
+            recordBtn.disabled = false;
+            userResult.textContent = "聆聽完畢，請點擊「🎤 開始口說」並跟讀。";
+        };
+
+        utterance.onerror = () => {
+            recordBtn.disabled = false;
+        };
+
+        synth.speak(utterance);
+    });
+
+    // 封裝語音設定，確保發音為英文
+    function UtteranceVoice(text) {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'en-US';
+        // 嘗試尋找原生英文語音(非必選，瀏覽器會自動偵測 lang)
+        const voices = synth.getVoices();
+        const enVoice = voices.find(v => v.lang.includes('en'));
+        if (enVoice) u.voice = enVoice;
+        return u;
+    }
+
+    // 8. 語音辨識 (STT) 處理
+    if (recognition) {
+        recordBtn.addEventListener('click', () => {
+            // 如果已經在錄音，則手動停止
+            if (recordBtn.classList.contains('recording')) {
+                recognition.stop();
+                return;
+            }
+
+            userResult.textContent = "正在聆聽您的聲音...請開始朗讀。";
+            recordBtn.classList.add('recording');
+            recordBtn.textContent = '🛑 結束辨識';
+            recognition.start();
+        });
+
+        // 辨識成功回傳結果
+        recognition.onresult = (event) => {
+            const speechToText = event.results[0][0].transcript;
+            userResult.textContent = `你說的是："${speechToText}"`;
+            
+            // 延遲 2 秒後自動進入下一句，讓使用者看得到自己剛剛說了什麼
+            setTimeout(() => {
+                currentIndex++;
+                showSentence(currentIndex);
+            }, 2000);
+        };
+
+        // 辨識結束 (無論成功或失敗都會觸發)
+        recognition.onend = () => {
+            recordBtn.classList.remove('recording');
+            recordBtn.textContent = '🎤 開始口說';
+        };
+
+        // 錯誤處理
+        recognition.onerror = (event) => {
+            console.error('語音辨識錯誤:', event.error);
+            if (event.error === 'no-speech') {
+                userResult.textContent = "沒有偵測到聲音，請再試一次。";
+            } else {
+                userResult.textContent = `辨識出錯: ${event.error}`;
+            }
+        };
+    }
+
+    // 確保語音清單載入 (部分瀏覽器異步載入 voices 需此初始化)
+    if (synth.onvoiceschanged !== undefined) {
+        synth.onvoiceschanged = loadTitles;
+    } else {
+        loadTitles();
+    }
+</script>
+
+</body>
+</html>
