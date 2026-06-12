@@ -63,6 +63,51 @@
         button:hover { background-color: #45a049; }
         button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
 
+        .mode-toggle {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ccc;
+            background-color: #f9f9f9;
+            color: #333;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background-color: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        .mode-btn:hover {
+            border-color: #4CAF50;
+        }
+        
+        .marked-badge {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            margin: 10px 0;
+            text-align: center;
+            border: 1px solid #ffeeba;
+            display: none;
+        }
+
+        .marked-badge.active {
+            display: block;
+        }
+
         .word-display {
             font-size: 36px;
             font-weight: bold;
@@ -88,6 +133,7 @@
         .audio-btn {
             background-color: #008CBA;
             margin: 0;
+            flex: 1;
         }
         .audio-btn:hover { background-color: #007B9A; }
         
@@ -123,11 +169,19 @@
         <button id="logout-btn" class="btn-logout">登出</button>
     </div>
     
+    <label style="text-align: left; display: block; font-weight: bold; font-size: 14px; color: #555; margin-bottom: 8px;">練習模式 (Mode)：</label>
+    <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-all" data-mode="all">📚 全部單字</button>
+        <button class="mode-btn" id="mode-marked" data-mode="marked">⭐ 標記單字</button>
+    </div>
+
     <label for="db-select" style="text-align: left; display: block; font-weight: bold; font-size: 14px; color: #555;">選擇單字分類 (Category)：</label>
     <select id="db-select">
         <option value="">正在從雲端同步分類...</option>
     </select>
     
+    <div class="marked-badge" id="marked-info">⭐ 此模式只顯示您標記(is_starred=true)的單字</div>
+
     <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
 
     <div id="exercise-section">
@@ -158,6 +212,7 @@
     let wordList = [];
     let currentIndex = 0;
     let isLocking = false; // 防止切換題目的空檔重複輸入
+    let currentMode = 'all'; // 'all' 或 'marked'
 
     const appContainer = document.getElementById('app-container');
     const dbSelect = document.getElementById('db-select');
@@ -169,6 +224,7 @@
     const speakEnBtn = document.getElementById('speak-en-btn');
     const speakChBtn = document.getElementById('speak-ch-btn');
     const resultMsg = document.getElementById('result-msg');
+    const markedBadge = document.getElementById('marked-info');
 
     window.onload = async function() {
         if (typeof window.supabase === 'undefined') {
@@ -196,6 +252,24 @@
 
     function bindEvents() {
         document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        
+        // 模式切換按鈕
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentMode = e.target.dataset.mode;
+                
+                if (currentMode === 'marked') {
+                    markedBadge.classList.add('active');
+                } else {
+                    markedBadge.classList.remove('active');
+                }
+                
+                loadWordsFromSupabase();
+            });
+        });
+
         dbSelect.addEventListener('change', loadWordsFromSupabase);
         
         speakEnBtn.addEventListener('click', () => {
@@ -281,7 +355,29 @@
             return;
         }
 
-        wordList = wordsData || [];
+        // 當模式為標記時，獲取使用者的標記狀態
+        if (currentMode === 'marked') {
+            const { data: statsData } = await supabaseClient
+                .from('user_word_stats')
+                .select('word_id, is_starred')
+                .eq('user_id', currentUser.id);
+
+            const starMap = {};
+            if (statsData) {
+                statsData.forEach(item => { starMap[item.word_id] = item.is_starred; });
+            }
+
+            // 只保留 is_starred 為 true 的單字
+            wordList = (wordsData || [])
+                .map(w => ({
+                    ...w,
+                    is_starred: starMap[w.id] || false
+                }))
+                .filter(w => w.is_starred === true);
+        } else {
+            // 全部模式：顯示所有單字
+            wordList = wordsData || [];
+        }
 
         if (wordList.length > 0) {
             // 隨機排序單字
@@ -295,7 +391,11 @@
             showWord();
         } else {
             enWord.textContent = "空字庫";
-            chWord.textContent = "此分類目前沒有單字。";
+            if (currentMode === 'marked') {
+                chWord.textContent = "此分類目前沒有標記的單字。";
+            } else {
+                chWord.textContent = "此分類目前沒有單字。";
+            }
             hintWord.textContent = "";
             progressBar.textContent = "進度: 0 / 0";
         }
@@ -379,9 +479,10 @@
         speak("恭喜你，完成所有單字練習！", "zh-TW");
 
         const exerciseSection = document.getElementById('exercise-section');
+        const modeText = currentMode === 'marked' ? '標記' : '';
         exerciseSection.innerHTML = `
             <div class="summary-title">🎉 練習結束！</div>
-            <p style="font-size: 18px; color: #555;">你已經成功挑戰了這個字庫的所有單字！</p>
+            <p style="font-size: 18px; color: #555;">你已經成功挑戰了這個字庫的所有${modeText}單字！</p>
             <div style="font-size: 48px; margin: 20px 0;">🏆</div>
             <button onclick="location.reload()" style="background-color: #3498db; margin-top: 20px;">再練習一次</button>
         `;
