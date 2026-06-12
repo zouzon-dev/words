@@ -59,6 +59,42 @@
             flex: 1;
         }
 
+        .mode-selector {
+            margin: 15px 0;
+            display: flex;
+            gap: 10px;
+            background: #f0f7ff;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #bfdbfe;
+            flex-wrap: wrap;
+        }
+
+        .mode-selector label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .mode-selector input[type="radio"] {
+            cursor: pointer;
+        }
+
+        .marked-badge {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-align: center;
+            display: none;
+        }
+
         .mode-badge {
             display: none;
             background-color: #ffeaa7;
@@ -148,6 +184,20 @@
             </select>
         </div>
 
+        <div class="mode-selector">
+            <strong style="width: 100%; font-size: 14px;">測驗模式：</strong>
+            <label>
+                <input type="radio" name="testMode" value="all" checked>
+                全部單字
+            </label>
+            <label>
+                <input type="radio" name="testMode" value="marked">
+                只有標記(⭐)單字
+            </label>
+        </div>
+
+        <div id="marked-badge" class="marked-badge">⭐ 此頁面只顯示您標記(is_starred=true)的單字</div>
+
         <div id="review-badge" class="mode-badge">⚠️ 正在進行【錯題本】複習模式</div>
 
         <div id="quiz-section">
@@ -192,6 +242,7 @@
     let wrongCount = 0;       
     let isReviewMode = false; 
     let isLocking = false;    
+    let testMode = 'all'; // 'all' 或 'marked'
 
     // 🌟 新增：儲存本次測驗開始時間的全域變數
     let quizStartTime = null;
@@ -231,6 +282,14 @@
         
         document.getElementById('answer-input').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') checkAnswer();
+        });
+
+        // 🌟 新增：監聽測驗模式選擇
+        document.querySelectorAll('input[name="testMode"]').forEach(radio => {
+            radio.addEventListener('change', function(e) {
+                testMode = e.target.value;
+                loadWordsFromSupabase();
+            });
         });
     }
 
@@ -296,11 +355,22 @@
             statsData.forEach(item => { starMap[item.word_id] = item.is_starred; });
         }
 
-        wordList = wordsData.map(w => ({
+        // 🌟 關鍵修改：根據測驗模式篩選單字
+        let filteredWords = wordsData.map(w => ({
             ...w,
             is_starred: starMap[w.id] || false
         }));
 
+        if (testMode === 'marked') {
+            // 只保留標記的單字
+            filteredWords = filteredWords.filter(w => w.is_starred === true);
+            document.getElementById('marked-badge').style.display = 'block';
+        } else {
+            // 顯示全部單字
+            document.getElementById('marked-badge').style.display = 'none';
+        }
+
+        wordList = filteredWords;
         wordList.sort(() => Math.random() - 0.5);
         failedWords = [];
         isReviewMode = false;
@@ -324,7 +394,11 @@
 
     function showQuestion() {
         if (wordList.length === 0) {
-            document.getElementById('question').innerText = "此分類目前沒有單字。";
+            if (testMode === 'marked') {
+                document.getElementById('question').innerText = "此分類目前沒有標記的單字。";
+            } else {
+                document.getElementById('question').innerText = "此分類目前沒有單字。";
+            }
             return;
         }
 
@@ -491,7 +565,7 @@
         }
 
         htmlContent += `<button onclick="window.loadWordsFromSupabase()">重新選題挑戰</button>`;
-        htmlContent += `<a href="history.html" style="display:inline-block; margin-top:15px; margin-left:10px; padding:12px 20px; background-color:#7f8c8d; color:white; text-decoration:none; border-radius:4px; font-size:16px; font-weight:bold;">📊 查看歷史與錯題分析</a>`;
+        htmlContent += `<a href="history.html" style="display:inline-block; margin-top:15px; margin-left:10px; padding:12px 20px; background-color:#7f8c8d; color:white; text-decoration:none; border-radius:4px;">📊 查看歷史成績</a>`;
         
         quizSection.innerHTML = htmlContent;
     }
