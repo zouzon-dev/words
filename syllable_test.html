@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音節方塊拖曳測驗系統</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #f1f5f9;
+            color: #333;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 650px;
+            width: 100%;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            display: none; 
+        }
+        h2 { margin-top: 0; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        
+        .user-info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-logout { background-color: #ef4444; padding: 6px 12px; font-size: 12px; color: white; border: none; border-radius: 6px; cursor: pointer;}
+        .btn-logout:hover { background-color: #dc2626; }
+
+        .selector-group {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px dashed #cbd5e1;
+        }
+        select {
+            padding: 8px 12px;
+            font-size: 15px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            outline: none;
+            flex: 1;
+        }
+
+        .score-board { margin-top: 20px; font-size: 14px; color: #64748b; display: flex; justify-content: space-between; }
+        .question-box { font-size: 24px; font-weight: bold; margin: 25px 0 15px 0; color: #1e293b; text-align: center;}
+
+        /* --- 拖曳工作區塊 --- */
+        .drag-drop-zone {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin: 25px 0;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .zone-title {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: bold;
+            margin-bottom: -10px;
+        }
+
+        .syllable-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            min-height: 65px;
+            padding: 12px;
+            background: #ffffff;
+            border-radius: 6px;
+            border: 2px dashed #cbd5e1;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        
+        #target-slots {
+            border: 2px dashed #3b82f6;
+            background-color: #f0f7ff;
+        }
+        
+        .syllable-container.drag-over {
+            background: #e0f2fe !important;
+            border-color: #38bdf8 !important;
+        }
+
+        /* 音節方塊 */
+        .syllable-block {
+            background-color: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: grab;
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .syllable-block:active { cursor: grabbing; }
+        .syllable-block.dragging { opacity: 0.4; transform: scale(0.95); }
+
+        /* 按鈕群組 */
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        button, .btn-link {
+            flex: 1;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #0ea5e9;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        button:hover, .btn-link:hover { background-color: #0284c7; }
+        button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+        button.btn-audio { background-color: #10b981; }
+        button.btn-audio:hover { background-color: #059669; }
+        button.btn-reset { background-color: #64748b; }
+        button.btn-reset:hover { background-color: #475569; }
+        
+        .result { margin-top: 20px; font-size: 18px; font-weight: bold; min-height: 27px; text-align: center; }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+
+        /* 🌟 結算畫面特別容器（預設隱藏） */
+        #summary-section {
+            display: none;
+            background: #f8fafc;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .summary-btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container" id="app-container">
+    <h2>🧩 雲端音節拼字拖曳測驗</h2>
+    
+    <div id="user-bar" class="user-info-bar">
+        <span>👤 學生：<span id="user-email-display">載入中...</span></span>
+        <button id="logout-btn" class="btn-logout">登出</button>
+    </div>
+
+    <div id="main-quiz-interface">
+        <div class="selector-group">
+            <label for="db-select"><strong>選擇單字分類：</strong></label>
+            <select id="db-select">
+                <option value="">正在從雲端同步分類...</option>
+            </select>
+        </div>
+
+        <div id="quiz-section">
+            <div class="score-board">
+                <span id="progress">進度：0 / 0</span>
+                <span id="score">即時正確率：0%</span>
+            </div>
+            
+            <div class="question-box">
+                <span id="question">載入中...</span>
+            </div>
+
+            <div class="drag-drop-zone">
+                <div class="zone-title">📦 可用的音節方塊 (請往下拖曳)：</div>
+                <div id="source-blocks" class="syllable-container"></div>
+
+                <div class="zone-title">📥 請將方塊拖曳至此處組合：</div>
+                <div id="target-slots" class="syllable-container"></div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn-audio" id="audio-btn">🔊 單字發音</button>
+                <button class="btn-reset" id="reset-btn">🔄 重置方塊</button>
+                <button id="submit-btn">✅ 提交組合</button>
+            </div>
+
+            <div id="result-message" class="result"></div>
+        </div>
+
+        <div id="summary-section">
+            <div id="summary-content"></div>
+            <div class="summary-btn-group">
+                <button id="retry-btn">🔄 重新選題挑戰</button>
+                <a href="history.html" class="btn-link" style="background-color: #64748b;">📊 查看歷史成績</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
+    
+    let supabaseClient = null;
+    let currentUser = null;
+
+    let wordList = [];       
+    let failedWords = [];    
+    let currentIndex = 0;
+    let correctCount = 0;
+    let attemptedCount = 0;
+    let wrongCount = 0;       
+    let isLocking = false;    
+    let quizStartTime = null;
+    let currentSyllables = [];
+
+    window.onload = async function() {
+        if (typeof window.supabase === 'undefined') {
+            alert("⚠️ 系統載入失敗！請確認網路或 Supabase 連線。");
+            return;
+        }
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && session.user) {
+            currentUser = session.user;
+            document.getElementById('user-email-display').innerText = currentUser.email;
+            document.getElementById('app-container').style.display = 'block';
+            
+            bindEvents();
+            await loadCategoriesFromSupabase();
+        } else {
+            window.location.href = 'login.html';
+        }
+    };
+
+    function bindEvents() {
+        document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        document.getElementById('db-select').addEventListener('change', loadWordsFromSupabase);
+        document.getElementById('audio-btn').addEventListener('click', speakCurrentWord);
+        document.getElementById('reset-btn').addEventListener('click', resetSyllablesLayout);
+        document.getElementById('submit-btn').addEventListener('click', checkAnswer);
+        
+        // 重新挑戰按鈕點擊事件
+        document.getElementById('retry-btn').addEventListener('click', loadWordsFromSupabase);
+        
+        setupDragAndDropContainers();
+    }
+
+    async function handleLogout() {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'login.html'; 
+    }
+
+    async function loadCategoriesFromSupabase() {
+        const selectEl = document.getElementById('db-select');
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('code, name')
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            alert(`載入單字庫分類失敗：${error.message}`);
+            return;
+        }
+
+        selectEl.innerHTML = '';
+        if (data && data.length > 0) {
+            data.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.code;
+                opt.innerText = `${cat.name} (${cat.code})`;
+                selectEl.appendChild(opt);
+            });
+            loadWordsFromSupabase();
+        } else {
+            selectEl.innerHTML = '<option value="">⚠️ 雲端目前未設定任何分類</option>';
+            document.getElementById('question').innerText = "請先至管理後台新增單字分類。";
+        }
+    }
+
+    async function loadWordsFromSupabase() {
+        if (!supabaseClient || !currentUser) return;
+        const targetCategory = document.getElementById('db-select').value;
+        if (!targetCategory) return;
+
+        // 🌟 切換選單或按重新挑戰時：確保顯示測驗區，隱藏結算區
+        document.getElementById('quiz-section').style.display = 'block';
+        document.getElementById('summary-section').style.display = 'none';
+
+        document.getElementById('question').innerText = "雲端單字載入中...";
+        clearDragZones();
+        
+        const { data: wordsData, error: wordsError } = await supabaseClient
+            .from('words')
+            .select('*')
+            .eq('category_code', targetCategory);
+
+        if (wordsError) {
+            document.getElementById('question').innerHTML = `<span class="error">載入失敗: ${wordsError.message}</span>`;
+            return;
+        }
+
+        const syllableWords = wordsData.filter(w => w.hint && /.+-.+/.test(w.hint));
+
+        if (syllableWords.length === 0) {
+            document.getElementById('question').innerHTML = `<span class="error">此分類無符合音節格式(xxx-xxx)的單字。</span>`;
+            wordList = [];
+            document.getElementById('progress').innerText = `進度：0 / 0`;
+            return;
+        }
+
+        wordList = syllableWords;
+        wordList.sort(() => Math.random() - 0.5);
+        failedWords = [];
+        quizStartTime = new Date();
+
+        initQuiz();
+    }
+
+    function initQuiz() {
+        currentIndex = 0;
+        correctCount = 0;
+        attemptedCount = 0;
+        isLocking = false;
+        document.getElementById('score').innerText = `即時正確率：0%`;
+        showQuestion();
+    }
+
+    function showQuestion() {
+        if (wordList.length === 0) return;
+
+        if (currentIndex >= wordList.length) {
+            showSummary();
+            return;
+        }
+
+        isLocking = false;
+        setControlsDisabled(false);
+        wrongCount = 0; 
+
+        const currentWord = wordList[currentIndex];
+        document.getElementById('question').innerText = `請依據音節拼出：「${currentWord.ch}」`;
+        document.getElementById('result-message').innerText = '';
+        document.getElementById('progress').innerText = `進度：${currentIndex + 1} / ${wordList.length}`;
+        
+        currentSyllables = currentWord.hint.split('-').map(s => s.trim());
+        resetSyllablesLayout();
+    }
+
+    function resetSyllablesLayout() {
+        if (isLocking) return;
+        
+        const sourceContainer = document.getElementById('source-blocks');
+        const targetContainer = document.getElementById('target-slots');
+        
+        sourceContainer.innerHTML = '';
+        targetContainer.innerHTML = '';
+
+        let shuffled = [...currentSyllables].sort(() => Math.random() - 0.5);
+        
+        if (shuffled.join('') === wordList[currentIndex].en.trim()) {
+            shuffled.sort(() => Math.random() - 0.5);
+        }
+
+        shuffled.forEach((syllable, index) => {
+            const block = document.createElement('div');
+            block.className = 'syllable-block';
+            block.draggable = true;
+            block.innerText = syllable;
+            block.id = `s-block-${index}`;
+            
+            block.addEventListener('dragstart', handleDragStart);
+            block.addEventListener('dragend', handleDragEnd);
+            
+            sourceContainer.appendChild(block);
+        });
+    }
+
+    let draggedElement = null;
+
+    function handleDragStart(e) {
+        if (isLocking) { e.preventDefault(); return; }
+        draggedElement = this;
+        this.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', this.id);
+    }
+
+    function handleDragEnd() {
+        this.classList.remove('dragging');
+        document.querySelectorAll('.syllable-container').forEach(c => c.classList.remove('drag-over'));
+    }
+
+    function setupDragAndDropContainers() {
+        const containers = document.querySelectorAll('.syllable-container');
+        
+        containers.forEach(container => {
+            container.addEventListener('dragover', function(e) {
+                e.preventDefault(); 
+                this.classList.add('drag-over');
+            });
+
+            container.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+
+            container.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                if (draggedElement) {
+                    this.appendChild(draggedElement);
+                }
+            });
+        });
+    }
+
+    function clearDragZones() {
+        document.getElementById('source-blocks').innerHTML = '';
+        document.getElementById('target-slots').innerHTML = '';
+    }
+
+    function checkAnswer() {
+        if (isLocking || currentIndex >= wordList.length) return;
+
+        const targetContainer = document.getElementById('target-slots');
+        const childBlocks = targetContainer.querySelectorAll('.syllable-block');
+        
+        if (childBlocks.length < currentSyllables.length) {
+            const resultMsg = document.getElementById('result-message');
+            resultMsg.className = "result error";
+            resultMsg.innerText = "⚠️ 請把所有的音節方塊都拖入下方的組合藍中再提交！";
+            return;
+        }
+
+        let userAssembledWord = "";
+        childBlocks.forEach(block => {
+            userAssembledWord += block.innerText;
+        });
+
+        const currentWord = wordList[currentIndex];
+        const correctAnswer = currentWord.en.trim().toLowerCase();
+        const resultMsg = document.getElementById('result-message');
+
+        if (userAssembledWord.toLowerCase() === correctAnswer) {
+            isLocking = true;
+            setControlsDisabled(true);
+            attemptedCount++;
+            correctCount++;
+
+            resultMsg.className = "result success";
+            resultMsg.innerText = `⭕ 正確！答案就是【${currentWord.en}】`;
+            speak(currentWord.en);
+            updateScoreBoard();
+
+            setTimeout(() => {
+                currentIndex++;
+                showQuestion();
+            }, 2000);
+        } else {
+            wrongCount++;
+            
+            if (!failedWords.some(item => item.id === currentWord.id)) {
+                failedWords.push(currentWord);
+            }
+
+            if (wrongCount < 3) {
+                resultMsg.className = "result error";
+                resultMsg.innerText = `❌ 順序不對喔！請再試一次（已失敗 ${wrongCount} 次，滿 3 次將公佈解答）`;
+                resetSyllablesLayout();
+            } else {
+                isLocking = true;
+                setControlsDisabled(true);
+                attemptedCount++;
+
+                resultMsg.className = "result error";
+                resultMsg.innerText = `❌ 挑戰失敗。正確順序應為：【${currentWord.hint}】 (即 ${currentWord.en})`;
+                speak(currentWord.en);
+                updateScoreBoard();
+
+                setTimeout(() => {
+                    currentIndex++;
+                    showQuestion();
+                }, 3500);
+            }
+        }
+    }
+
+    function setControlsDisabled(disabledState) {
+        document.getElementById('submit-btn').disabled = disabledState;
+        document.getElementById('audio-btn').disabled = disabledState;
+        document.getElementById('reset-btn').disabled = disabledState;
+        document.querySelectorAll('.syllable-block').forEach(b => {
+            b.draggable = !disabledState;
+        });
+    }
+
+    function updateScoreBoard() {
+        const rate = attemptedCount === 0 ? 0 : Math.round((correctCount / attemptedCount) * 100);
+        document.getElementById('score').innerText = `即時正確率：${rate}%`;
+    }
+
+    async function showSummary() {
+        // 🌟 隱藏測驗題目區，顯示獨立的結算區，保護 DOM 結構
+        document.getElementById('quiz-section').style.display = 'none';
+        const summarySection = document.getElementById('summary-section');
+        const summaryContent = document.getElementById('summary-content');
+        summarySection.style.display = 'block';
+
+        let rate = wordList.length === 0 ? 0 : Math.round((correctCount / wordList.length) * 100);
+
+        if (wordList.length > 0 && supabaseClient) {
+            const quizEndTime = new Date();
+            const targetCategory = document.getElementById('db-select').value;
+            
+            const { error } = await supabaseClient
+                .from('quiz_logs')
+                .insert({
+                    user_id: currentUser.id,
+                    quiz_type: 'syllable_drag', 
+                    category_code: targetCategory,
+                    total_questions: wordList.length,
+                    correct_answers: correctCount,
+                    accuracy_rate: rate,
+                    start_time: quizStartTime ? quizStartTime.toISOString() : quizEndTime.toISOString(),
+                    end_time: quizEndTime.toISOString(),
+                    wrong_word_ids: failedWords.map(w => w.id)
+                });
+                
+            if (error) console.error("歷史紀錄連線寫入失敗:", error.message);
+        }
+
+        let htmlContent = `
+            <h3 class="success" style="font-size: 22px; margin-top:0;">🎉 音節挑戰測驗完成！</h3>
+            <p style="font-size: 16px;">得分表現：答對 <strong>${correctCount}</strong> 題 / 共 <strong>${wordList.length}</strong> 題</p>
+            <p style="font-size: 18px; color: #0ea5e9; font-weight: bold;">答對率：${rate}%</p>
+        `;
+
+        if (failedWords.length > 0) {
+            htmlContent += `<p style="color: #b45309; background-color: #fef3c7; padding: 8px; border-radius: 6px; display:inline-block;">本次錯題數量：<strong>${failedWords.length}</strong> 題，再接再厲！</p>`;
+        } else {
+            htmlContent += `<p class="success" style="font-weight:bold; font-size: 16px;">✨ 太厲害了！完美通關！</p>`;
+        }
+        
+        summaryContent.innerHTML = htmlContent;
+    }
+
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.85; 
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    function speakCurrentWord() {
+        if (isLocking) return;
+        if (wordList[currentIndex]) {
+            speak(wordList[currentIndex].en);
+        }
+    }
+</script>
+
+</body>
+</html>
