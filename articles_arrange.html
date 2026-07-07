@@ -58,14 +58,17 @@
             border-top: 4px solid #3498db;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);articles
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             margin-bottom: 20px;
             display: none;
         }
+        
+        /* 修改了這裡的 margin，因為移到了最下方 */
         .translation {
             font-size: 1.3rem;
             color: #2c3e50;
-            margin-bottom: 20px;
+            margin-top: 25px; 
+            margin-bottom: 5px;
             font-weight: bold;
         }
         
@@ -209,8 +212,8 @@
     </div>
 
     <div class="sentence-card" id="sentenceCard">
-        <div class="translation" id="translationText"></div>
         
+        <!-- 音檔控制列移到最上方 -->
         <div class="audio-controls">
             <button class="audio-btn" onclick="playCurrentSentence()">🔊 聽整句讀音提示</button>
             <div class="rate-select-wrapper">
@@ -230,6 +233,9 @@
         <div class="drop-zone-area" id="dropZoneArea"></div>
         
         <div class="result-msg" id="resultMsg"></div>
+
+        <!-- 中文翻譯已經移到最後一行 -->
+        <div class="translation" id="translationText"></div>
     </div>
     
     <div class="progress" id="progress">進度：0 / 0</div>
