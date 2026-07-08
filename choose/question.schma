@@ -1,0 +1,42 @@
+-- 1. 學科與單元分類表 (Categories & Units)
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    subject_name VARCHAR(100) NOT NULL, -- 例如：計算機概論、會計學
+    unit_name VARCHAR(100) NOT NULL,    -- 例如：第一章 緒論、第二章 數位邏輯
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. 選擇題題庫表 (Questions)
+CREATE TABLE questions (
+    id SERIAL PRIMARY KEY,
+    category_id INT REFERENCES categories(id) ON DELETE CASCADE,
+    question_text TEXT NOT NULL,         -- 題目敘述
+    option_a TEXT NOT NULL,              -- 選項 A
+    option_b TEXT NOT NULL,              -- 選項 B
+    option_c TEXT NOT NULL,              -- 選項 C
+    option_d TEXT NOT NULL,              -- 選項 D
+    correct_answer CHAR(1) NOT NULL,     -- 正確答案 (A, B, C, D)
+    explanation TEXT,                    -- 詳解
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. 測驗紀錄與評分表 (Quiz Records)
+CREATE TABLE quiz_records (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- 連動 Supabase 使用者
+    score INT NOT NULL,                  -- 該次測驗分數
+    total_questions INT NOT NULL,        -- 總題數
+    tested_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 4. 錯題標記/收藏表 (Marked Questions)
+-- 用來記錄使用者哪些題目寫錯，或是主動標記想複習的題目
+CREATE TABLE marked_questions (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    question_id INT REFERENCES questions(id) ON DELETE CASCADE,
+    is_wrong_history BOOLEAN DEFAULT FALSE, -- 是否是因為做錯而被系統自動記錄
+    is_bookmarked BOOLEAN DEFAULT FALSE,    -- 是否是用戶手動收藏標記
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, question_id)            -- 確保同一個人同一題只有一筆紀錄
+);
