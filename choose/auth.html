@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>題庫系統 - 帳號認證</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --success-color: #16a34a;
+            --error-color: #dc2626;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .brand h1 {
+            font-size: 24px;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+
+        .brand p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #334155;
+        }
+
+        input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: #fff;
+            transition: all 0.2s;
+        }
+
+        input[type="email"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            color: white;
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .switch-mode {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .switch-mode a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .switch-mode a:hover {
+            text-decoration: underline;
+        }
+
+        /* 狀態訊息 */
+        .status-msg {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            text-align: center;
+        }
+        .status-msg.success { display: block; background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .status-msg.error { display: block; background-color: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+
+        /* 已登入狀態看板 */
+        .user-info-card {
+            text-align: center;
+            display: none;
+        }
+        .user-email {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 10px 0 20px;
+            word-break: break-all;
+        }
+        .btn-logout {
+            background-color: #ef4444;
+        }
+        .btn-logout:hover {
+            background-color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    
+    <div id="statusMsg" class="status-msg"></div>
+
+    <div class="card" id="authCard">
+        <div class="brand">
+            <h1 id="formTitle">登入系統</h1>
+            <p id="formDesc">請輸入您的帳號密碼以開始練習題庫</p>
+        </div>
+
+        <form id="authForm" onsubmit="handleAuth(event)">
+            <div class="form-group">
+                <label for="email">電子郵件 (Email)</label>
+                <input type="email" id="email" placeholder="example@email.com" required>
+            </div>
+            <div class="form-group">
+                <label for="password">密碼 (Password)</label>
+                <input type="password" id="password" placeholder="請輸入密碼 (至少 6 位數)" required>
+            </div>
+            <button type="submit" class="btn" id="submitBtn">登入</button>
+        </form>
+
+        <div class="switch-mode" id="switchContainer">
+            還沒有帳號嗎？ <a href="#" onclick="toggleMode(event, 'signup')">立即註冊</a>
+        </div>
+    </div>
+
+    <div class="card user-info-card" id="welcomeCard">
+        <div class="brand">
+            <h1>🎉 歡迎回來</h1>
+            <p>您目前已成功登入系統</p>
+        </div>
+        <div class="user-email" id="currentUserEmail">loading...</div>
+        <button class="btn" onclick="goToQuiz()">前往題庫做答</button>
+        <button class="btn btn-logout" onclick="handleLogout()" style="margin-top: 10px;">登出帳號</button>
+    </div>
+
+</div>
+
+<script>
+    // 內嵌您的 Supabase 專案金鑰
+    const SUPABASE_URL = "https://cebkdvpquzzlvyrhinto.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_nMJezib-NsDHpvDSLLXHaw_9005bSpQ";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentMode = 'login'; // 狀態：login 或 signup
+
+    // 初始化：檢查目前使用者是否已經登入過
+    document.addEventListener("DOMContentLoaded", async () => {
+        checkUserStatus();
+    });
+
+    // 檢查登入狀態並切換 UI
+    async function checkUserStatus() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        
+        if (user) {
+            // 已登入
+            document.getElementById("authCard").style.display = "none";
+            document.getElementById("welcomeCard").style.display = "block";
+            document.getElementById("currentUserEmail").innerText = user.email;
+        } else {
+            // 未登入
+            document.getElementById("authCard").style.display = "block";
+            document.getElementById("welcomeCard").style.display = "none";
+        }
+    }
+
+    // 切換 登入/註冊 模式
+    function toggleMode(event, mode) {
+        event.preventDefault();
+        currentMode = mode;
+        const msgDiv = document.getElementById("statusMsg");
+        msgDiv.style.display = "none";
+
+        if (mode === 'signup') {
+            document.getElementById("formTitle").innerText = "註冊新帳號";
+            document.getElementById("formDesc").innerText = "建立您的專屬帳號以記錄錯題本";
+            document.getElementById("submitBtn").innerText = "建立帳號並登入";
+            document.getElementById("switchContainer").innerHTML = '已經有帳號了？ <a href="#" onclick="toggleMode(event, \'login\')">立即登入</a>';
+        } else {
+            document.getElementById("formTitle").innerText = "登入系統";
+            document.getElementById("formDesc").innerText = "請輸入您的帳號密碼以開始練習題庫";
+            document.getElementById("submitBtn").innerText = "登入";
+            document.getElementById("switchContainer").innerHTML = '還沒有帳號嗎？ <a href="#" onclick="toggleMode(event, \'signup\')">立即註冊</a>';
+        }
+    }
+
+    // 處理表單提交
+    async function handleAuth(event) {
+        event.preventDefault();
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+        const msgDiv = document.getElementById("statusMsg");
+        const submitBtn = document.getElementById("submitBtn");
+
+        submitBtn.disabled = true;
+        msgDiv.style.display = "none";
+
+        if (currentMode === 'signup') {
+            // ---- 執行註冊 ----
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            
+            if (error) {
+                showStatus(msgDiv, `註冊失敗：${error.message}`, "error");
+                submitBtn.disabled = false;
+            } else {
+                // 如果後端關閉了 Email 驗證，註冊成功通常會自動登入
+                showStatus(msgDiv, "🎉 註冊成功！系統正自動為您登入...", "success");
+                setTimeout(() => {
+                    checkUserStatus();
+                    submitBtn.disabled = false;
+                }, 1500);
+            }
+        } else {
+            // ---- 執行登入 ----
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                showStatus(msgDiv, `登入失敗：${error.message}`, "error");
+                submitBtn.disabled = false;
+            } else {
+                showStatus(msgDiv, "🔐 登入成功，正在導向...", "success");
+                setTimeout(() => {
+                    checkUserStatus();
+                    submitBtn.disabled = false;
+                }, 1000);
+            }
+        }
+    }
+
+    // 處理登出
+    async function handleLogout() {
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) {
+            alert("登出失敗: " + error.message);
+        } else {
+            const msgDiv = document.getElementById("statusMsg");
+            showStatus(msgDiv, "已安全登出帳號", "success");
+            document.getElementById("authForm").reset();
+            checkUserStatus();
+        }
+    }
+
+    // 跳轉頁面
+    function goToQuiz() {
+        // 請確保你的做答系統檔名正確，這裡預設為 quiz_player.html
+        window.location.href = "quiz_player.html"; 
+    }
+
+    function showStatus(element, message, type) {
+        element.className = `status-msg ${type}`;
+        element.innerText = message;
+    }
+</script>
+
+</body>
+</html>

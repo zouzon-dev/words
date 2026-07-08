@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>歷史測驗紀錄與數據分析</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #10b981; /* 綠色調代表成績與通過 */
+            --primary-hover: #059669;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --success-color: #16a34a;
+            --error-color: #dc2626;
+            --warning-color: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+        header { margin-bottom: 30px; text-align: center; }
+        header h1 { font-size: 28px; color: #0f172a; margin-bottom: 8px; }
+        header p { color: var(--text-muted); font-size: 15px; }
+
+        /* 頂部數據統計看板卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 600px) { .stats-grid { grid-template-columns: 1fr; } }
+
+        .stat-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .stat-card .value { font-size: 32px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+        .stat-card .label { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+
+        /* 主要內容卡片 */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #0f172a;
+            border-left: 4px solid var(--primary-color);
+            padding-left: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 表格樣式 */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; }
+        th, td { padding: 14px; border-bottom: 1px solid var(--border-color); }
+        th { background-color: #f8fafc; font-weight: 700; color: #1e293b; }
+        tr:hover { background-color: #f8fafc; }
+
+        /* 分數評級色塊 */
+        .score-badge {
+            display: inline-block; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 13px;
+        }
+        .score-pass { background-color: #dcfce7; color: #16a34a; }   /* 60分以上 */
+        .score-excellent { background-color: #e0e7ff; color: #4338ca; } /* 90分以上 */
+        .score-fail { background-color: #fee2e2; color: #dc2626; }   /* 不及格 */
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 8px 16px; font-size: 14px; font-weight: 500;
+            border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s;
+            background-color: #e2e8f0; color: #334155; text-decoration: none;
+        }
+        .btn:hover { background-color: #cbd5e1; }
+        
+        .no-data { text-align: center; color: var(--text-muted); padding: 40px 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>個人測驗歷史紀錄</h1>
+        <p>追蹤您的學習成長曲線與每次測驗分數表現</p>
+    </header>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="label">📚 總測驗次数</div>
+            <div class="value" id="totalQuizzes">0 次</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">📈 歷史平均分數</div>
+            <div class="value" id="avgScore" style="color: var(--warning-color);">0 分</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">🏆 最高得分紀錄</div>
+            <div class="value" id="maxScore" style="color: var(--success-color);">0 分</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">
+            <span>📋 歷次測驗詳細清單</span>
+            <a href="quiz_player.html" class="btn">返回題庫做答</a>
+        </div>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 80px;">序號</th>
+                        <th>測驗時間</th>
+                        <th>測驗總題數</th>
+                        <th>測驗得分</th>
+                        <th>結果評定</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted);">正在確認您的身分並讀取雲端紀錄...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 內嵌您的 Supabase 專案金鑰
+    const SUPABASE_URL = "https://cebkdvpquzzlvyrhinto.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_nMJezib-NsDHpvDSLLXHaw_9005bSpQ";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentUserId = null;
+
+    // 網頁開啟時，先執行身分驗證，再拉取對應的 quiz_records
+    document.addEventListener("DOMContentLoaded", async () => {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        
+        if (!user) {
+            // 若未登入，強制導向登入註冊頁
+            alert("請先登入系統以查看您的歷史成績！");
+            window.location.href = "auth.html";
+            return;
+        }
+        
+        currentUserId = user.id; 
+        fetchQuizHistory(); // 撈取歷史紀錄
+    });
+
+    // 從 Supabase 撈取屬於該登入用戶的紀錄
+    async function fetchQuizHistory() {
+        const tbody = document.getElementById("historyTableBody");
+        
+        // 依照 tested_at (測驗時間) 由新到舊排序
+        const { data, error } = await supabaseClient
+            .from('quiz_records')
+            .select('*')
+            .eq('user_id', currentUserId)
+            .order('tested_at', { ascending: false });
+
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--error-color);">資料載入失敗: ${error.message}</td></tr>`;
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="no-data">📭 目前還沒有任何做答紀錄，快前往題庫寫題目吧！</td></tr>`;
+            return;
+        }
+
+        // 1. 計算看板數據
+        calculateStats(data);
+
+        // 2. 渲染歷史表格清單
+        tbody.innerHTML = data.map((record, index) => {
+            // 轉換更易讀的時間格式
+            const testDate = new Date(record.tested_at).toLocaleString('zh-TW', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+
+            // 根據分數高低決定樣式標籤
+            let badgeClass = "score-fail";
+            let badgeText = "不及格";
+            
+            if (record.score >= 90) {
+                badgeClass = "score-excellent";
+                badgeText = "卓越";
+            } else if (record.score >= 60) {
+                badgeClass = "score-pass";
+                badgeText = "及格";
+            }
+
+            return `
+                <tr>
+                    <td>${data.length - index}</td>
+                    <td style="color: var(--text-muted);">${testDate}</td>
+                    <td>${record.total_questions} 題</td>
+                    <td style="font-weight: 700; font-size: 15px;">${record.score} 分</td>
+                    <td><span class="score-badge ${badgeClass}">${badgeText}</span></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // 計算數據統計核心邏輯
+    function calculateStats(records) {
+        const total = records.length;
+        
+        // 分數總和
+        const sumScore = records.reduce((sum, item) => sum + item.score, 0);
+        const avg = Math.round(sumScore / total);
+        
+        // 最高分
+        const max = Math.max(...records.map(item => item.score));
+
+        // 渲染至畫面上
+        document.getElementById("totalQuizzes").innerText = `${total} 次`;
+        document.getElementById("avgScore").innerText = `${avg} 分`;
+        document.getElementById("maxScore").innerText = `${max} 分`;
+
+        // 根據平均分動態調整平均分看板的顏色
+        const avgElement = document.getElementById("avgScore");
+        if (avg >= 90) avgElement.style.color = "var(--primary-color)";
+        else if (avg >= 60) avgElement.style.color = "var(--warning-color)";
+        else avgElement.style.color = "var(--error-color)";
+    }
+</script>
+
+</body>
+</html>
