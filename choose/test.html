@@ -73,6 +73,8 @@
         .btn-primary:hover { background-color: var(--primary-hover); }
         .btn-success { background-color: var(--success-color); color: white; }
         .btn-success:hover { background-color: #15803d; }
+        .btn-secondary { background-color: #f59e0b; color: white; }
+        .btn-secondary:hover { background-color: #d97706; }
 
         /* 考題介面樣式 */
         .question-block {
@@ -112,6 +114,24 @@
             color: #312e81; padding: 30px; border-radius: 12px; margin-bottom: 24px;
         }
         .score-number { font-size: 48px; font-weight: 800; color: #4338ca; margin: 10px 0; }
+
+        /* 成績按鈕組 */
+        .score-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        @media (max-width: 600px) {
+            .score-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .score-actions .btn {
+            width: 100%;
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -139,7 +159,10 @@
         <h2>測驗結束</h2>
         <div class="score-number" id="finalScore">0 分</div>
         <p id="scoreDetail">答對 0 題 / 總共 0 題</p>
-        <button class="btn btn-primary" style="margin-top: 15px; width: auto;" onclick="location.reload()">再測一次 / 更換單元</button>
+        <div class="score-actions">
+            <button class="btn btn-primary" onclick="location.reload()">再測一次</button>
+            <button class="btn btn-secondary" onclick="goToMarkedQuestions()">查看錯題本 ❌</button>
+        </div>
     </div>
 
     <div class="card" id="quizCard" style="display: none;">
@@ -386,6 +409,11 @@
         
         document.getElementById("submitBtn").style.display = "none";
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 導向到錯題管理頁面
+    function goToMarkedQuestions() {
+        window.location.href = "marked_questions_manager.html";
     }
 
     // 網頁編碼防護
