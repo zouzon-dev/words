@@ -159,13 +159,25 @@
     const SUPABASE_KEY = "sb_publishable_nMJezib-NsDHpvDSLLXHaw_9005bSpQ";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // 模擬當前登入的使用者 UUID
-    const MOCK_USER_ID = "00000000-0000-0000-0000-000000000000"; 
+    // 從實際使用者驗證取得 user_id
+    let currentUserId = null; 
 
     let currentQuestions = [];
 
-    // 頁面載入後自動取得分類選單
+    // 頁面載入後先進行使用者驗證，再自動取得分類選單
     document.addEventListener("DOMContentLoaded", async () => {
+        // 步驟 1: 取得登入的使用者
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        
+        if (!user) {
+            alert("請先登入系統以使用測驗功能！");
+            window.location.href = "auth.html";
+            return;
+        }
+        
+        currentUserId = user.id;
+        
+        // 步驟 2: 載入分類選單
         const select = document.getElementById("categorySelect");
         
         const { data, error } = await supabaseClient
@@ -337,14 +349,16 @@
         });
 
         const finalScore = Math.round((correctCount / totalQuestions) * 100);
+        const testedAt = new Date().toISOString();
 
         // 寫入測驗紀錄表
         const { error: recordError } = await supabaseClient
             .from('quiz_records')
             .insert([{
-                user_id: MOCK_USER_ID,
+                user_id: currentUserId,
                 score: finalScore,
-                total_questions: totalQuestions
+                total_questions: totalQuestions,
+                tested_at: testedAt
             }]);
         
         if (recordError) console.error("成績紀錄寫入失敗:", recordError.message);
@@ -352,9 +366,10 @@
         // 將寫錯的題目紀錄至錯題標記表
         if (wrongQuestionIds.length > 0) {
             const upsertData = wrongQuestionIds.map(qId => ({
-                user_id: MOCK_USER_ID,
+                user_id: currentUserId,
                 question_id: qId,
-                is_wrong_history: true
+                is_wrong_history: true,
+                wrong_at: testedAt
             }));
 
             const { error: markError } = await supabaseClient
