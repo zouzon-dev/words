@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>題庫管理系統 - 首頁導航</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary-color: #0ea5e9;
+            --tertiary-color: #10b981;
+            --quaternary-color: #f59e0b;
+            --danger-color: #dc2626;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 50px;
+        }
+
+        header h1 {
+            font-size: 42px;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        header p {
+            font-size: 18px;
+            opacity: 0.95;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .nav-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border-left: 5px solid var(--primary-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .nav-card:nth-child(1) { border-left-color: #4f46e5; }
+        .nav-card:nth-child(2) { border-left-color: #0ea5e9; }
+        .nav-card:nth-child(3) { border-left-color: #667eea; }
+        .nav-card:nth-child(4) { border-left-color: #10b981; }
+        .nav-card:nth-child(5) { border-left-color: #f59e0b; }
+        .nav-card:nth-child(6) { border-left-color: #ec4899; }
+
+        .nav-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .nav-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .nav-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+
+        .nav-description {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .nav-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            background-color: var(--primary-color);
+            color: white;
+            width: 100%;
+            margin-top: auto;
+        }
+
+        .nav-card:nth-child(1) .nav-button { background-color: #4f46e5; }
+        .nav-card:nth-child(1) .nav-button:hover { background-color: #4338ca; }
+
+        .nav-card:nth-child(2) .nav-button { background-color: #0ea5e9; }
+        .nav-card:nth-child(2) .nav-button:hover { background-color: #0284c7; }
+
+        .nav-card:nth-child(3) .nav-button { background-color: #667eea; }
+        .nav-card:nth-child(3) .nav-button:hover { background-color: #5568d3; }
+
+        .nav-card:nth-child(4) .nav-button { background-color: #10b981; }
+        .nav-card:nth-child(4) .nav-button:hover { background-color: #059669; }
+
+        .nav-card:nth-child(5) .nav-button { background-color: #f59e0b; }
+        .nav-card:nth-child(5) .nav-button:hover { background-color: #d97706; }
+
+        .nav-card:nth-child(6) .nav-button { background-color: #ec4899; }
+        .nav-card:nth-child(6) .nav-button:hover { background-color: #be185d; }
+
+        .features-section {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .features-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 24px;
+            border-left: 4px solid var(--primary-color);
+            padding-left: 12px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-item {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .feature-icon {
+            font-size: 36px;
+            margin-bottom: 12px;
+        }
+
+        .feature-text {
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            padding: 30px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        @media (max-width: 768px) {
+            .nav-grid {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 32px;
+            }
+
+            .features-section {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🎓 題庫管理系統</h1>
+        <p>完整的線上題目練習、管理與追蹤平台</p>
+    </header>
+
+    <div class="nav-grid">
+        <!-- 帳號認證 -->
+        <div class="nav-card">
+            <div>
+                <div class="nav-icon">🔐</div>
+                <div class="nav-title">帳號認證</div>
+                <div class="nav-description">登入或註冊帳號，安全地管理您的學習進度與錯題本。</div>
+            </div>
+            <a href="auth.html" class="nav-button">進入登入系統 →</a>
+        </div>
+
+        <!-- 題庫做答 -->
+        <div class="nav-card">
+            <div>
+                <div class="nav-icon">📝</div>
+                <div class="nav-title">線上做答</div>
+                <div class="nav-description">選擇學科單元，進行線上選擇題測驗，系統自動計分與記錄。</div>
+            </div>
+            <a href="test.html" class="nav-button">開始做題 →</a>
+        </div>
+
+        <!-- 分類管理 -->
+        <div class="nav-card">
+            <div>
+                <div class="nav-icon">📂</div>
+                <div class="nav-title">分類管理</div>
+                <div class="nav-description">新增、編輯學科與單元分類，組織您的題庫結構。</div>
+            </div>
+            <a href="category_manger.html" class="nav-button">管理分類 →</a>
+        </div>
+
+        <!-- 題庫上傳 -->
+        <div class="nav-card">
+            <div>
+                <div class="nav-icon">⬆️</div>
+                <div class="nav-title">題庫上傳</div>
+                <div class="nav-description">批次上傳 JSON 題庫檔案，或手動逐題新增題目。</div>
+            </div>
+            <a href="question_uploader.html" class="nav-button">上傳題庫 →</a>
+        </div>
+
+        <!-- 成績與歷史 -->
+        <div class="nav-card">
+            <div>
+                <div class="nav-icon">📈</div>
+                <div class="nav-title">成績查詢</div>
+                <div class="nav-description">查看歷次測驗成績、平均分數與進度趨勢分析。</div>
+            </div>
+            <a href="quiz_history.html" class="nav-button">查看成績 →</a>
+        </div>
+
+        <!-- 錯題管理 -->
+        <div class="nav-card">
+            <div>
+                <div class="nav-icon">❌</div>
+                <div class="nav-title">錯題管理</div>
+                <div class="nav-description">追蹤錯題與收藏題目，透過有效複習強化弱項。</div>
+            </div>
+            <a href="marked_questions_manager.html" class="nav-button">管理錯題 →</a>
+        </div>
+    </div>
+
+    <div class="features-section">
+        <div class="features-title">✨ 系統功能特色</div>
+        <div class="features-grid">
+            <div class="feature-item">
+                <div class="feature-icon">👤</div>
+                <div class="feature-text">使用者帳號管理</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">📊</div>
+                <div class="feature-text">自動評分與統計</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">📚</div>
+                <div class="feature-text">分類管理系統</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">☁️</div>
+                <div class="feature-text">雲端資料同步</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">🎯</div>
+                <div class="feature-text">精準範圍選題</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">⭐</div>
+                <div class="feature-text">錯題收藏標記</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>📌 提示：請先完成帳號認證，才能享受完整的題庫功能！</p>
+        <p style="margin-top: 12px; opacity: 0.8;">© 2026 題庫管理系統 | 所有功能均已與 Supabase 後端完全整合</p>
+    </div>
+</div>
+
+</body>
+</html>
