@@ -115,6 +115,33 @@
         }
         .score-number { font-size: 48px; font-weight: 800; color: #4338ca; margin: 10px 0; }
 
+        /* 錯題提示框 */
+        .wrong-questions-banner {
+            background-color: #fee2e2;
+            border: 2px solid #fca5a5;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .wrong-questions-banner.show { display: block; }
+        .wrong-questions-title {
+            font-weight: 700;
+            color: #991b1b;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .wrong-questions-list {
+            font-size: 14px;
+            color: #7f1d1d;
+            word-break: break-word;
+            font-family: 'Courier New', monospace;
+            background-color: #fef2f2;
+            padding: 10px;
+            border-radius: 4px;
+            line-height: 1.8;
+        }
+
         /* 成績按鈕組 */
         .score-actions {
             display: grid;
@@ -159,6 +186,13 @@
         <h2>測驗結束</h2>
         <div class="score-number" id="finalScore">0 分</div>
         <p id="scoreDetail">答對 0 題 / 總共 0 題</p>
+        
+        <!-- 錯題提示框 -->
+        <div class="wrong-questions-banner" id="wrongQuestionsBanner">
+            <div class="wrong-questions-title">❌ 測驗完錯誤的題號：</div>
+            <div class="wrong-questions-list" id="wrongQuestionsList"></div>
+        </div>
+        
         <div class="score-actions">
             <button class="btn btn-primary" onclick="location.reload()">再測一次</button>
             <button class="btn btn-secondary" onclick="goToMarkedQuestions()">查看錯題本 ❌</button>
@@ -186,6 +220,8 @@
     let currentUserId = null; 
 
     let currentQuestions = [];
+    // 保存題目與題號的對應關係
+    let questionNumberMap = {};
 
     // 頁面載入後先進行使用者驗證，再自動取得分類選單
     document.addEventListener("DOMContentLoaded", async () => {
@@ -292,6 +328,12 @@
 
         currentQuestions = filteredQuestions;
         
+        // 建立題號對應表
+        questionNumberMap = {};
+        filteredQuestions.forEach((q, idx) => {
+            questionNumberMap[q.id] = idx + 1;
+        });
+        
         // 隱藏設定卡片，顯示題目卡片
         document.getElementById("setupCard").style.display = "none";
         document.getElementById("quizCard").style.display = "block";
@@ -340,6 +382,7 @@
         let correctCount = 0;
         const totalQuestions = currentQuestions.length;
         const wrongQuestionIds = [];
+        const wrongQuestionNumbers = [];
 
         currentQuestions.forEach(q => {
             const radioGroup = document.getElementsByName(`question_${q.id}`);
@@ -363,6 +406,7 @@
                 document.getElementById(`label_${q.id}_${q.correct_answer}`).classList.add("correct-choice");
             } else {
                 wrongQuestionIds.push(q.id);
+                wrongQuestionNumbers.push(questionNumberMap[q.id]);
                 block.classList.add("wrong");
                 document.getElementById(`label_${q.id}_${q.correct_answer}`).classList.add("correct-choice");
                 if (userAns) {
@@ -406,6 +450,13 @@
         document.getElementById("scoreBoard").style.display = "block";
         document.getElementById("finalScore").innerText = `${finalScore} 分`;
         document.getElementById("scoreDetail").innerText = `答對 ${correctCount} 題 / 總共 ${totalQuestions} 題（已將 ${wrongQuestionIds.length} 筆錯題自動同步至您的錯題本）`;
+        
+        // 顯示錯題提示框
+        if (wrongQuestionNumbers.length > 0) {
+            const wrongNumbersStr = wrongQuestionNumbers.join(', ');
+            document.getElementById("wrongQuestionsList").innerText = wrongNumbersStr;
+            document.getElementById("wrongQuestionsBanner").classList.add("show");
+        }
         
         document.getElementById("submitBtn").style.display = "none";
         window.scrollTo({ top: 0, behavior: 'smooth' });
