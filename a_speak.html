@@ -46,7 +46,7 @@
             font-weight: bold;
             color: #555;
         }
-        select {
+        select, input {
             width: 100%;
             padding: 10px;
             border-radius: 6px;
@@ -58,8 +58,19 @@
             -moz-appearance: none;
             cursor: pointer;
             min-height: 44px;
+            box-sizing: border-box;
+        }
+
+        input {
+            appearance: auto;
+            -webkit-appearance: auto;
+            -moz-appearance: auto;
+            cursor: text;
+        }
+
+        select {
             /* 加入自訂的下拉箭頭背景，解決手機版看不出是選單的問題 */
-            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%23333333%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%27%23333%27%20d%3D%27M287%2069.4a17.6%2017.6%200%200%200-13-5.6H18.4c-5%200-9.3%201.8-12.9%205.6A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.6%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%27%3E%3C%2Fpath%3E%3C%2Fsvg%3E");
             background-repeat: no-repeat;
             background-position: right 15px top 50%;
             background-size: 12px auto;
@@ -117,6 +128,45 @@
             font-size: 12px;
             color: #7f8c8d;
             margin-top: 5px;
+        }
+
+        /* 句子範圍選擇器 */
+        .sentence-range-group {
+            background: #f0f4f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .sentence-range-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .range-inputs {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .range-inputs input {
+            flex: 1;
+            width: 100%;
+        }
+
+        .range-inputs span {
+            color: #555;
+            font-weight: bold;
+        }
+
+        .range-info {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 8px;
         }
 
         .practice-card {
@@ -218,6 +268,16 @@
         </select>
     </div>
 
+    <div id="sentenceRangePanel" class="sentence-range-group hidden">
+        <label>📍 選擇練習句子範圍（可選）：</label>
+        <div class="range-inputs">
+            <input type="number" id="startSentence" placeholder="開始" min="1" value="1">
+            <span>-</span>
+            <input type="number" id="endSentence" placeholder="結束" min="1">
+        </div>
+        <div class="range-info">💡 留空表示全部句子。例如：輸入 1-5 表示只練習第 1 到第 5 句</div>
+    </div>
+
     <div id="accuracyPanel" class="accuracy-selector hidden">
         <label>🎯 選擇口說正確率門檻：</label>
         <div class="accuracy-buttons">
@@ -237,10 +297,10 @@
         </div>
 
         <div>
-            <div class="user-result" id="userResult">點擊下方按鈕開始聽寫辨識...</div>
+            <div class="user-result" id="userResult">正在載入句子並自動發音...</div>
             <div class="result" id="resultMsg"></div>
             
-            <button class="btn" id="playBtn">🔊 播放發音</button>
+            <button class="btn" id="playBtn">🔊 重新播放</button>
             <button class="btn btn-record" id="recordBtn" disabled>🎤 開始口說</button>
         </div>
     </div>
@@ -254,6 +314,9 @@
 
     // 2. DOM 元素獲取
     const titleSelect = document.getElementById('titleSelect');
+    const sentenceRangePanel = document.getElementById('sentenceRangePanel');
+    const startSentenceInput = document.getElementById('startSentence');
+    const endSentenceInput = document.getElementById('endSentence');
     const accuracyPanel = document.getElementById('accuracyPanel');
     const practiceArea = document.getElementById('practiceArea');
     const progressText = document.getElementById('progressText');
@@ -269,6 +332,8 @@
     let currentIndex = 0;
     let accuracyThreshold = 0.6; // 預設 60%
     let isLocking = false;
+    let displaySentences = []; // 用於存儲篩選後的句子範圍
+    let rangeStartIndex = 0;   // 範圍內的起始索引
     
     // 瀏覽器語音 API 宣告
     const synth = window.speechSynthesis;
@@ -309,12 +374,33 @@
         }
     }
 
+    // 4.5. 應用句子範圍篩選
+    function applySentenceRange() {
+        const startInput = parseInt(startSentenceInput.value) || 1;
+        const endInput = parseInt(endSentenceInput.value) || currentSentences.length;
+        
+        // 驗證範圍
+        const start = Math.max(1, Math.min(startInput, currentSentences.length));
+        const end = Math.max(start, Math.min(endInput, currentSentences.length));
+        
+        // 更新輸入框
+        startSentenceInput.value = start;
+        endSentenceInput.value = end;
+        
+        // 篩選句子
+        displaySentences = currentSentences.slice(start - 1, end);
+        rangeStartIndex = start - 1;
+        
+        return displaySentences;
+    }
+
     // 5. 監聽下拉選單：切換文章
     titleSelect.addEventListener('change', async (e) => {
         const selectedTitle = e.target.value;
         if (!selectedTitle) {
             practiceArea.classList.add('hidden');
             accuracyPanel.classList.add('hidden');
+            sentenceRangePanel.classList.add('hidden');
             return;
         }
 
@@ -330,8 +416,18 @@
 
             if (data && data.length > 0) {
                 currentSentences = data;
+                
+                // 設定範圍輸入框的最大值
+                endSentenceInput.max = data.length;
+                endSentenceInput.value = data.length;
+                startSentenceInput.max = data.length;
+                
+                // 應用範圍篩選
+                applySentenceRange();
+                
                 currentIndex = 0;
                 isLocking = false;
+                sentenceRangePanel.classList.remove('hidden');
                 accuracyPanel.classList.remove('hidden');
                 practiceArea.classList.remove('hidden');
                 showSentence(currentIndex);
@@ -342,6 +438,23 @@
             console.error('載入句子失敗:', err.message);
         }
     });
+
+    // 5.5. 監聽句子範圍輸入
+    function bindRangeInputs() {
+        startSentenceInput.addEventListener('change', () => {
+            applySentenceRange();
+            currentIndex = 0;
+            isLocking = false;
+            showSentence(currentIndex);
+        });
+
+        endSentenceInput.addEventListener('change', () => {
+            applySentenceRange();
+            currentIndex = 0;
+            isLocking = false;
+            showSentence(currentIndex);
+        });
+    }
 
     // 6. 準確度按鈕綁定
     function bindAccuracyButtons() {
@@ -360,28 +473,56 @@
 
     // 7. 渲染當前句子
     function showSentence(index) {
-        if (index >= currentSentences.length) {
-            alert('🎉 恭喜！您已完成本篇文章的所有句子跟讀！');
+        if (index >= displaySentences.length) {
+            alert('🎉 恭喜！您已完成選定範圍的所有句子跟讀！');
             titleSelect.value = "";
             practiceArea.classList.add('hidden');
             accuracyPanel.classList.add('hidden');
+            sentenceRangePanel.classList.add('hidden');
             return;
         }
 
-        const current = currentSentences[index];
-        progressText.textContent = `句子：${index + 1} / ${currentSentences.length}`;
+        const current = displaySentences[index];
+        const actualIndex = rangeStartIndex + index + 1; // 實際的句子編號
+        progressText.textContent = `句子：${actualIndex} / ${rangeStartIndex + displaySentences.length}`;
         enText.textContent = current.en_text;
         zhText.textContent = current.zh_text;
-        userResult.textContent = "請先點擊「🔊 播放發音」聽取句子。";
+        userResult.textContent = "正在自動發音...請耐心聆聽。";
         resultMsg.textContent = "";
         
         // 重置按鈕狀態
         recordBtn.disabled = true;
         recordBtn.classList.remove('recording');
         recordBtn.textContent = '🎤 開始口說';
+        
+        // 自動播放發音
+        autoPlaySentence();
     }
 
-    // 8. 英文句子發音 (TTS)
+    // 7.5. 自動播放句子發音
+    function autoPlaySentence() {
+        // 確保沒有正在進行的語音
+        if (synth.speaking) {
+            synth.cancel();
+        }
+
+        const utterance = new UtteranceVoice(enText.textContent);
+        
+        utterance.onend = () => {
+            // 播放完畢後，允許使用者點擊口說
+            recordBtn.disabled = false;
+            userResult.textContent = "聆聽完畢，請點擊「🎤 開始口說」並跟讀。";
+        };
+
+        utterance.onerror = () => {
+            recordBtn.disabled = false;
+            userResult.textContent = "發音出錯，請點擊「🔊 重新播放」重試。";
+        };
+
+        synth.speak(utterance);
+    }
+
+    // 8. 英文句子發音 (TTS) - 手動重新播放
     playBtn.addEventListener('click', () => {
         if (synth.speaking) {
             synth.cancel(); // 如果正在播放，先停止
@@ -460,9 +601,9 @@
 
     // 10. 比對口說結果
     function checkSpeakingInput(userSpoken) {
-        if (isLocking || currentIndex >= currentSentences.length) return;
+        if (isLocking || currentIndex >= displaySentences.length) return;
 
-        const currentData = currentSentences[currentIndex];
+        const currentData = displaySentences[currentIndex];
         const targetText = currentData.en_text;
 
         // 進行文本標準化（轉小寫、去除常見標點符號、前後空白）
@@ -536,6 +677,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         loadTitles();
         bindAccuracyButtons();
+        bindRangeInputs();
     });
 
 </script>
