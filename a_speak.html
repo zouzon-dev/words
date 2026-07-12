@@ -59,12 +59,66 @@
             cursor: pointer;
             min-height: 44px;
             /* 加入自訂的下拉箭頭背景，解決手機版看不出是選單的問題 */
-            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23555555%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%23333333%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E");
             background-repeat: no-repeat;
             background-position: right 15px top 50%;
             background-size: 12px auto;
             padding-right: 40px; /* 避免文字與箭頭重疊 */
         }
+
+        /* 準確度選擇面板 */
+        .accuracy-selector {
+            background: #f0f4f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .accuracy-selector label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .accuracy-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .accuracy-btn {
+            padding: 8px 16px;
+            border: 2px solid #cbd5e1;
+            background-color: white;
+            color: #333;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .accuracy-btn:hover {
+            border-color: #3498db;
+            background-color: #e3f2fd;
+        }
+
+        .accuracy-btn.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .accuracy-info {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
         .practice-card {
             border: 2px solid #eef2f7;
             border-radius: 10px;
@@ -141,6 +195,15 @@
         .hidden {
             display: none !important;
         }
+
+        .result {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 15px;
+            min-height: 27px;
+        }
+        .success { color: #27ae60; }
+        .error { color: #c0392b; }
     </style>
 </head>
 <body>
@@ -155,6 +218,17 @@
         </select>
     </div>
 
+    <div id="accuracyPanel" class="accuracy-selector hidden">
+        <label>🎯 選擇口說正確率門檻：</label>
+        <div class="accuracy-buttons">
+            <button type="button" class="accuracy-btn" data-accuracy="100">💯 完美 (100%)</button>
+            <button type="button" class="accuracy-btn" data-accuracy="90">⭐ 優秀 (90%)</button>
+            <button type="button" class="accuracy-btn" data-accuracy="80">👍 良好 (80%)</button>
+            <button type="button" class="accuracy-btn active" data-accuracy="60">🆗 基礎 (60%)</button>
+        </div>
+        <div class="accuracy-info">💡 選擇難度越高，對口說發音的要求越嚴格</div>
+    </div>
+
     <div id="practiceArea" class="practice-card hidden">
         <div>
             <div class="progress" id="progressText">句子：0 / 0</div>
@@ -164,6 +238,7 @@
 
         <div>
             <div class="user-result" id="userResult">點擊下方按鈕開始聽寫辨識...</div>
+            <div class="result" id="resultMsg"></div>
             
             <button class="btn" id="playBtn">🔊 播放發音</button>
             <button class="btn btn-record" id="recordBtn" disabled>🎤 開始口說</button>
@@ -179,17 +254,21 @@
 
     // 2. DOM 元素獲取
     const titleSelect = document.getElementById('titleSelect');
+    const accuracyPanel = document.getElementById('accuracyPanel');
     const practiceArea = document.getElementById('practiceArea');
     const progressText = document.getElementById('progressText');
     const enText = document.getElementById('enText');
     const zhText = document.getElementById('zhText');
     const userResult = document.getElementById('userResult');
+    const resultMsg = document.getElementById('resultMsg');
     const playBtn = document.getElementById('playBtn');
     const recordBtn = document.getElementById('recordBtn');
 
     // 3. 全域變數控制
     let currentSentences = [];
     let currentIndex = 0;
+    let accuracyThreshold = 0.6; // 預設 60%
+    let isLocking = false;
     
     // 瀏覽器語音 API 宣告
     const synth = window.speechSynthesis;
@@ -235,6 +314,7 @@
         const selectedTitle = e.target.value;
         if (!selectedTitle) {
             practiceArea.classList.add('hidden');
+            accuracyPanel.classList.add('hidden');
             return;
         }
 
@@ -251,6 +331,8 @@
             if (data && data.length > 0) {
                 currentSentences = data;
                 currentIndex = 0;
+                isLocking = false;
+                accuracyPanel.classList.remove('hidden');
                 practiceArea.classList.remove('hidden');
                 showSentence(currentIndex);
             } else {
@@ -261,12 +343,28 @@
         }
     });
 
-    // 6. 渲染當前句子
+    // 6. 準確度按鈕綁定
+    function bindAccuracyButtons() {
+        const accuracyButtons = document.querySelectorAll('.accuracy-btn');
+        accuracyButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // 移除所有 active 類
+                accuracyButtons.forEach(b => b.classList.remove('active'));
+                // 添加 active 類到點擊的按鈕
+                e.target.classList.add('active');
+                // 更新門檻
+                accuracyThreshold = parseInt(e.target.getAttribute('data-accuracy')) / 100;
+            });
+        });
+    }
+
+    // 7. 渲染當前句子
     function showSentence(index) {
         if (index >= currentSentences.length) {
             alert('🎉 恭喜！您已完成本篇文章的所有句子跟讀！');
             titleSelect.value = "";
             practiceArea.classList.add('hidden');
+            accuracyPanel.classList.add('hidden');
             return;
         }
 
@@ -275,6 +373,7 @@
         enText.textContent = current.en_text;
         zhText.textContent = current.zh_text;
         userResult.textContent = "請先點擊「🔊 播放發音」聽取句子。";
+        resultMsg.textContent = "";
         
         // 重置按鈕狀態
         recordBtn.disabled = true;
@@ -282,7 +381,7 @@
         recordBtn.textContent = '🎤 開始口說';
     }
 
-    // 7. 英文句子發音 (TTS)
+    // 8. 英文句子發音 (TTS)
     playBtn.addEventListener('click', () => {
         if (synth.speaking) {
             synth.cancel(); // 如果正在播放，先停止
@@ -307,6 +406,7 @@
     function UtteranceVoice(text) {
         const u = new SpeechSynthesisUtterance(text);
         u.lang = 'en-US';
+        u.rate = 0.85; // 速度稍慢便於學習聽講
         // 嘗試尋找原生英文語音(非必選，瀏覽器會自動偵測 lang)
         const voices = synth.getVoices();
         const enVoice = voices.find(v => v.lang.includes('en'));
@@ -314,7 +414,7 @@
         return u;
     }
 
-    // 8. 語音辨識 (STT) 處理
+    // 9. 語音辨識 (STT) 處理
     if (recognition) {
         recordBtn.addEventListener('click', () => {
             // 如果已經在錄音，則手動停止
@@ -324,6 +424,7 @@
             }
 
             userResult.textContent = "正在聆聽您的聲音...請開始朗讀。";
+            resultMsg.textContent = "";
             recordBtn.classList.add('recording');
             recordBtn.textContent = '🛑 結束辨識';
             recognition.start();
@@ -334,11 +435,8 @@
             const speechToText = event.results[0][0].transcript;
             userResult.textContent = `你說的是："${speechToText}"`;
             
-            // 延遲 2 秒後自動進入下一句，讓使用者看得到自己剛剛說了什麼
-            setTimeout(() => {
-                currentIndex++;
-                showSentence(currentIndex);
-            }, 2000);
+            // 檢查口說內容是否符合準確度門檻
+            checkSpeakingInput(speechToText);
         };
 
         // 辨識結束 (無論成功或失敗都會觸發)
@@ -351,17 +449,93 @@
         recognition.onerror = (event) => {
             console.error('語音辨識錯誤:', event.error);
             if (event.error === 'no-speech') {
-                userResult.textContent = "沒有偵測到聲音，請再試一次。";
+                resultMsg.textContent = "❌ 沒有偵測到聲音，請再試一次。";
+                resultMsg.className = "result error";
             } else {
-                userResult.textContent = `辨識出錯: ${event.error}`;
+                resultMsg.textContent = `❌ 辨識出錯: ${event.error}`;
+                resultMsg.className = "result error";
             }
         };
     }
 
-    // 將資料庫載入邏輯從 synth.onvoiceschanged 改為在 DOM 載入後直接執行
-    // 這樣在手機瀏覽器上才不會因為語音 API 被阻擋而導致文章標題未載入
+    // 10. 比對口說結果
+    function checkSpeakingInput(userSpoken) {
+        if (isLocking || currentIndex >= currentSentences.length) return;
+
+        const currentData = currentSentences[currentIndex];
+        const targetText = currentData.en_text;
+
+        // 進行文本標準化（轉小寫、去除常見標點符號、前後空白）
+        const normalizedUser = cleanText(userSpoken);
+        const normalizedTarget = cleanText(targetText);
+
+        // 計算相似度百分比
+        const similarity = getSimilarity(normalizedUser, normalizedTarget);
+        const accuracyPercent = Math.round(similarity * 100);
+
+        // 根據選擇的門檻進行檢查
+        if (similarity >= accuracyThreshold) {
+            isLocking = true;
+            resultMsg.textContent = `🎯 太棒了！發音正確率達 ${accuracyPercent}%！`;
+            resultMsg.className = "result success";
+            
+            // 慶祝音效提示過關
+            synth.cancel();
+            const celebration = new UtteranceVoice("Good job!");
+            celebration.onend = () => {
+                currentIndex++;
+                isLocking = false;
+                showSentence(currentIndex);
+            };
+            synth.speak(celebration);
+            
+        } else {
+            resultMsg.textContent = `❌ 聽起來不太像喔 (正確率: ${accuracyPercent}%)，請再試著念一次！`;
+            resultMsg.className = "result error";
+        }
+    }
+
+    // 11. 格式化字串：移除標點符號
+    function cleanText(str) {
+        return str.toLowerCase()
+                  .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "")
+                  .replace(/\s+/g, " ")
+                  .trim();
+    }
+
+    // 12. 核心演算法：計算兩個字串的字元相似度 (Levenshtein Distance)
+    function getSimilarity(s1, s2) {
+        const len1 = s1.length;
+        const len2 = s2.length;
+        const maxLen = Math.max(len1, len2);
+        if (maxLen === 0) return 1.0;
+
+        // 初始化動態規劃矩陣
+        const dp = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
+        for (let i = 0; i <= len1; i++) dp[i][0] = i;
+        for (let j = 0; j <= len2; j++) dp[0][j] = j;
+
+        for (let i = 1; i <= len1; i++) {
+            for (let j = 1; j <= len2; j++) {
+                if (s1[i - 1] === s2[j - 1]) {
+                    dp[i][j] = dp[i - 1][j - 1];
+                } else {
+                    dp[i][j] = Math.min(
+                        dp[i - 1][j] + 1,    // 刪除
+                        dp[i][j - 1] + 1,    // 插入
+                        dp[i - 1][j - 1] + 1 // 替換
+                    );
+                }
+            }
+        }
+        // 回傳 0.0 ~ 1.0 之間的相似度比例
+        return (maxLen - dp[len1][len2]) / maxLen;
+    }
+
+    // 13. 初始化
     document.addEventListener('DOMContentLoaded', () => {
         loadTitles();
+        bindAccuracyButtons();
     });
 
 </script>
