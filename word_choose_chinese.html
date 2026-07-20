@@ -58,42 +58,6 @@
             flex: 1;
         }
 
-        /* 🌟 新增：測驗模式選擇器樣式 */
-        .mode-selector {
-            margin: 15px 0;
-            display: flex;
-            gap: 10px;
-            background: #f0f7ff;
-            padding: 10px;
-            border-radius: 4px;
-            border: 1px solid #bfdbfe;
-            flex-wrap: wrap;
-        }
-        .mode-selector label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            margin: 0;
-        }
-        .mode-selector input[type="radio"] {
-            cursor: pointer;
-        }
-
-        /* 🌟 新增：標記提示徽章樣式 */
-        .marked-badge {
-            background-color: #fff3cd;
-            color: #856404;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 15px;
-            text-align: center;
-            display: none;
-        }
-
         .question-box { 
             font-size: 26px; 
             font-weight: bold; 
@@ -172,20 +136,6 @@
             </select>
         </div>
 
-        <div class="mode-selector">
-            <strong style="width: 100%; font-size: 14px;">測驗模式：</strong>
-            <label>
-                <input type="radio" name="testMode" value="all" checked>
-                全部單字
-            </label>
-            <label>
-                <input type="radio" name="testMode" value="marked">
-                只有標記(⭐)單字
-            </label>
-        </div>
-
-        <div id="marked-badge" class="marked-badge">⭐ 此頁面只顯示您標記(is_starred=true)的單字</div>
-
         <div id="quiz-section">
             <div class="score-board">
                 <span id="progress">進度：0 / 0</span>
@@ -224,9 +174,8 @@
     let attemptedCount = 0;
     let isLocking = false;      
     let isCurrentQuestionWrong = false; // 紀錄當前這題有沒有猜錯過
-    let testMode = 'all';       // 🌟 新增：預設為全部單字模式
 
-    // 儲存錯題與時間的全域變數
+    // 🌟 新增：儲存錯題與時間的全域變數
     let wrongWordsInQuiz = [];
     let quizStartTime = null;
 
@@ -257,14 +206,6 @@
         });
         document.getElementById('data-select').addEventListener('change', loadWordsFromSupabase);
         document.getElementById('audio-btn').addEventListener('click', speakCurrentWord);
-
-        // 🌟 新增：監聽測驗模式選擇
-        document.querySelectorAll('input[name="testMode"]').forEach(radio => {
-            radio.addEventListener('change', function(e) {
-                testMode = e.target.value;
-                loadWordsFromSupabase();
-            });
-        });
     }
 
     async function fetchAllPoolWords() {
@@ -290,47 +231,21 @@
     }
 
     async function loadWordsFromSupabase() {
-        if (!supabaseClient || !currentUser) return;
+        if (!supabaseClient) return;
         const targetCategory = document.getElementById('data-select').value;
         if (!targetCategory) return;
 
         document.getElementById('question-word').innerText = "連線載入中...";
 
-        // 獲取目前分類的所有單字
-        const { data: wordsData, error: wordsError } = await supabaseClient.from('words').select('*').eq('category_code', targetCategory);
-        if (wordsError || !wordsData || wordsData.length === 0) {
+        const { data, error } = await supabaseClient.from('words').select('*').eq('category_code', targetCategory);
+        if (error || !data || data.length === 0) {
             document.getElementById('question-word').innerText = "⚠️ 此分類暫無單字";
             return;
         }
 
-        // 🌟 參考 word_test.html 的做法：撈取使用者星號標記狀態
-        const { data: statsData } = await supabaseClient
-            .from('user_word_stats')
-            .select('word_id, is_starred')
-            .eq('user_id', currentUser.id);
-
-        const starMap = {};
-        if (statsData) {
-            statsData.forEach(item => { starMap[item.word_id] = item.is_starred; });
-        }
-
-        // 🌟 整合標記欄位至單字清單
-        let filteredWords = wordsData.map(w => ({
-            ...w,
-            is_starred: starMap[w.id] || false
-        }));
-
-        // 🌟 根據選擇的測驗模式進行篩選
-        if (testMode === 'marked') {
-            filteredWords = filteredWords.filter(w => w.is_starred === true);
-            document.getElementById('marked-badge').style.display = 'block';
-        } else {
-            document.getElementById('marked-badge').style.display = 'none';
-        }
-
-        wordList = filteredWords.sort(() => Math.random() - 0.5);
+        wordList = data.sort(() => Math.random() - 0.5);
         
-        // 初始化時間與錯題庫
+        // 🌟 新增：新一輪選擇題測驗開始，初始化時間與錯題庫
         wrongWordsInQuiz = [];
         quizStartTime = new Date();
 
@@ -347,35 +262,23 @@
     }
 
     function showQuestion() {
-        // 🌟 新增：針對「標記模式」完全沒有單字時的畫面提示處理
-        if (wordList.length === 0) {
-            if (testMode === 'marked') {
-                document.getElementById('question-word').innerText = "此分類目前沒有標記的單字。";
-            } else {
-                document.getElementById('question-word').innerText = "此分類目前沒有單字。";
-            }
-            document.getElementById('options-container').innerHTML = '';
-            document.getElementById('progress').innerText = `進度：0 / 0`;
-            return;
-        }
-
         if (currentIndex >= wordList.length) {
             showSummary();
             return;
         }
 
         isLocking = false;
-        isCurrentQuestionWrong = false; 
+        isCurrentQuestionWrong = false; // 重置單題錯誤狀態
         document.getElementById('result-message').innerText = '';
         document.getElementById('progress').innerText = `進度：${currentIndex + 1} / ${wordList.length}`;
 
         const currentWord = wordList[currentIndex];
-        document.getElementById('question-word').innerText = currentWord.en; 
+        document.getElementById('question-word').innerText = currentWord.en; // 秀出英文
 
         // 自動發音
         speak(currentWord.en);
 
-        // 製造四選一選項
+        // 製造四選一選項 (1個正確中文 + 3個隨機干擾中文)
         const options = [currentWord.ch];
         const wrongPool = allPoolWords.filter(ch => ch !== currentWord.ch);
         const shuffledWrong = wrongPool.sort(() => Math.random() - 0.5);
@@ -383,6 +286,7 @@
         for (let i = 0; i < 3; i++) {
             if (shuffledWrong[i]) options.push(shuffledWrong[i]);
         }
+        // 再次打亂四個選項
         options.sort(() => Math.random() - 0.5);
 
         // 渲染按鈕
@@ -403,15 +307,17 @@
         const resultMsgEl = document.getElementById('result-message');
 
         if (selectedText === correctText) {
+            // 答對
             isLocking = true;
             clickedBtn.classList.add('correct');
             resultMsgEl.className = "result success";
             resultMsgEl.innerText = "⭕ 回答正確！";
 
+            // 全功能選項鎖定
             disableAllOptions();
 
             if (!isCurrentQuestionWrong) {
-                correctCount++; 
+                correctCount++; // 第一次就選對才算得分
             }
             attemptedCount++;
             updateScoreBoard();
@@ -422,11 +328,13 @@
             }, 1500);
 
         } else {
+            // 答錯
             clickedBtn.classList.add('incorrect');
-            clickedBtn.disabled = true; 
+            clickedBtn.disabled = true; // 點錯的按鈕反灰鎖定
             resultMsgEl.className = "result error";
             resultMsgEl.innerText = "❌ 答錯了，再試試看其他選項！";
 
+            // 🌟 新增：只要點錯，立刻將當前這題的單字記錄到錯題陣列中（確保不重複加入）
             isCurrentQuestionWrong = true;
             const currentWord = wordList[currentIndex];
             if (!wrongWordsInQuiz.some(w => w.id === currentWord.id)) {
@@ -449,6 +357,7 @@
         const quizSection = document.getElementById('quiz-section');
         let rate = wordList.length === 0 ? 0 : Math.round((correctCount / wordList.length) * 100);
 
+        // 🌟 新增：在結算畫面渲染前，打包成績與錯題 ID 陣列同步回傳至 `quiz_logs`
         if (wordList.length > 0 && supabaseClient) {
             const quizEndTime = new Date();
             const targetCategory = document.getElementById('data-select').value;
@@ -457,14 +366,14 @@
                 .from('quiz_logs')
                 .insert({
                     user_id: currentUser.id,
-                    quiz_type: 'multiple_choice', 
+                    quiz_type: 'multiple_choice', // 標註四選一類型
                     category_code: targetCategory,
                     total_questions: wordList.length,
                     correct_answers: correctCount,
                     accuracy_rate: rate,
                     start_time: quizStartTime ? quizStartTime.toISOString() : quizEndTime.toISOString(),
                     end_time: quizEndTime.toISOString(),
-                    wrong_word_ids: wrongWordsInQuiz.map(w => w.id) 
+                    wrong_word_ids: wrongWordsInQuiz.map(w => w.id) // 🌟 核心：上傳所有點錯題目的 ID 陣列
                 });
 
             if (error) console.error("選擇題紀錄寫入失敗:", error.message);
