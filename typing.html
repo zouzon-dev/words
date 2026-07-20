@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>英文單字打字練習器 (雲端發音版)</title>
     
+    <!-- 引入 Slim Select 樣式與腳本 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slim-select/2.8.1/slimselect.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/slim-select/2.8.1/slimselect.min.js"></script>
     
     <style>
         body {
@@ -45,7 +48,6 @@
         .btn-logout { background-color: #ef4444; padding: 4px 10px; font-size: 12px; color: white; border: none; border-radius: 4px; cursor: pointer;}
         .btn-logout:hover { background-color: #dc2626; }
 
-        /* 調整原本的樣式，移除 select 的 100% 寬度以避免與 Slim Select 衝突 */
         input, button {
             font-size: 16px;
             padding: 10px;
@@ -169,8 +171,6 @@
             margin-bottom: 15px;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/slim-select/2.8.1/slimselect.min.js"></script>
 </head>
 <body>
 
@@ -221,7 +221,7 @@
     
     let supabaseClient = null;
     let currentUser = null;
-    let slimSelectInstance = null; // 儲存 Slim Select 實例
+    let slimSelectInstance = null; 
     let wordList = [];
     let currentIndex = 0;
     let isLocking = false; 
@@ -308,7 +308,6 @@
         window.location.href = 'login.html'; 
     }
 
-    // 修改此函式以套用 Slim Select 搜尋選單
     async function loadCategoriesFromSupabase() {
         const { data, error } = await supabaseClient
             .from('categories')
@@ -320,14 +319,13 @@
             return;
         }
 
-        // 若已有實例先銷毀
         if (slimSelectInstance) {
             slimSelectInstance.destroy();
+            slimSelectInstance = null;
         }
 
         dbSelect.innerHTML = '';
         
-        // 插入 data-placeholder 屬性的空選項
         const placeholderOpt = document.createElement('option');
         placeholderOpt.setAttribute('data-placeholder', 'true');
         placeholderOpt.value = '';
@@ -342,22 +340,23 @@
                 dbSelect.appendChild(opt);
             });
             
-            // 預設指向第一個實際的雲端分類
             dbSelect.value = data[0].code;
 
-            // 初始化 Slim Select (參數與 word_test.html 完全一致)
-            slimSelectInstance = new SlimSelect({
-                select: '#db-select',
-                settings: {
-                    showSearch: true,           
-                    searchHighlight: true,      
-                    placeholderText: '🔍 請選擇或搜尋分類...',
-                    searchPlaceholder: '輸入分類名稱或代碼進行搜尋...',
-                    searchText: '找不到相符的分類 😢'
-                }
-            });
+            // 使用 setTimeout 緩衝 50ms 確保 DOM 渲染完整，解決 GitHub Pages 上的載入延遲問題
+            setTimeout(() => {
+                slimSelectInstance = new SlimSelect({
+                    select: '#db-select',
+                    settings: {
+                        showSearch: true,           
+                        searchHighlight: true,      
+                        placeholderText: '🔍 請選擇或搜尋分類...',
+                        searchPlaceholder: '輸入分類名稱或代碼進行搜尋...',
+                        searchText: '找不到相符的分類 😢'
+                    }
+                });
+                loadWordsFromSupabase();
+            }, 50);
 
-            loadWordsFromSupabase();
         } else {
             dbSelect.innerHTML = '<option value="">⚠️ 雲端目前未設定任何分類</option>';
             enWord.textContent = "請先至後台新增分類";
