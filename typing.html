@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>英文單字打字練習器 (雲端發音版)</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slim-select/2.8.1/slimselect.min.css" />
+    
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -42,7 +45,8 @@
         .btn-logout { background-color: #ef4444; padding: 4px 10px; font-size: 12px; color: white; border: none; border-radius: 4px; cursor: pointer;}
         .btn-logout:hover { background-color: #dc2626; }
 
-        select, input, button {
+        /* 調整原本的樣式，移除 select 的 100% 寬度以避免與 Slim Select 衝突 */
+        input, button {
             font-size: 16px;
             padding: 10px;
             margin: 10px 0;
@@ -62,6 +66,59 @@
         }
         button:hover { background-color: #45a049; }
         button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+
+        /* 確保 Slim Select 元件外觀寬度正常 */
+        .ss-main {
+            width: 100%;
+            font-size: 15px;
+            margin: 10px 0;
+            text-align: left;
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ccc;
+            background-color: #f9f9f9;
+            color: #333;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background-color: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        .mode-btn:hover {
+            border-color: #4CAF50;
+        }
+        
+        .marked-badge {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            margin: 10px 0;
+            text-align: center;
+            border: 1px solid #ffeeba;
+            display: none;
+        }
+
+        .marked-badge.active {
+            display: block;
+        }
 
         .word-display {
             font-size: 36px;
@@ -88,6 +145,7 @@
         .audio-btn {
             background-color: #008CBA;
             margin: 0;
+            flex: 1;
         }
         .audio-btn:hover { background-color: #007B9A; }
         
@@ -112,6 +170,7 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/slim-select/2.8.1/slimselect.min.js"></script>
 </head>
 <body>
 
@@ -123,11 +182,19 @@
         <button id="logout-btn" class="btn-logout">登出</button>
     </div>
     
+    <label style="text-align: left; display: block; font-weight: bold; font-size: 14px; color: #555; margin-bottom: 8px;">練習模式 (Mode)：</label>
+    <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-all" data-mode="all">📚 全部單字</button>
+        <button class="mode-btn" id="mode-marked" data-mode="marked">⭐ 標記單字</button>
+    </div>
+
     <label for="db-select" style="text-align: left; display: block; font-weight: bold; font-size: 14px; color: #555;">選擇單字分類 (Category)：</label>
     <select id="db-select">
         <option value="">正在從雲端同步分類...</option>
     </select>
     
+    <div class="marked-badge" id="marked-info">⭐ 此模式只顯示您標記(is_starred=true)的單字</div>
+
     <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
 
     <div id="exercise-section">
@@ -149,15 +216,16 @@
 </div>
 
 <script>
-    // Supabase 設定（與 word_test.html 一致）
     const SUPABASE_URL = 'https://phwecknpfeewbtwwmhik.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_Q5qLW7iV1QdlJRTcJLRaig_B4sMfP-P';
     
     let supabaseClient = null;
     let currentUser = null;
+    let slimSelectInstance = null; // 儲存 Slim Select 實例
     let wordList = [];
     let currentIndex = 0;
-    let isLocking = false; // 防止切換題目的空檔重複輸入
+    let isLocking = false; 
+    let currentMode = 'all'; 
 
     const appContainer = document.getElementById('app-container');
     const dbSelect = document.getElementById('db-select');
@@ -169,6 +237,7 @@
     const speakEnBtn = document.getElementById('speak-en-btn');
     const speakChBtn = document.getElementById('speak-ch-btn');
     const resultMsg = document.getElementById('result-msg');
+    const markedBadge = document.getElementById('marked-info');
 
     window.onload = async function() {
         if (typeof window.supabase === 'undefined') {
@@ -178,7 +247,6 @@
 
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // 檢查使用者登入狀態
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (session && session.user) {
             currentUser = session.user;
@@ -186,16 +254,31 @@
             appContainer.style.display = 'block';
             
             bindEvents();
-            // 優先加載雲端分類
             await loadCategoriesFromSupabase();
         } else {
-            // 未登入強制踢回登入頁面
             window.location.href = 'login.html';
         }
     };
 
     function bindEvents() {
         document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentMode = e.target.dataset.mode;
+                
+                if (currentMode === 'marked') {
+                    markedBadge.classList.add('active');
+                } else {
+                    markedBadge.classList.remove('active');
+                }
+                
+                loadWordsFromSupabase();
+            });
+        });
+
         dbSelect.addEventListener('change', loadWordsFromSupabase);
         
         speakEnBtn.addEventListener('click', () => {
@@ -210,10 +293,8 @@
             typeInput.focus();
         });
 
-        // 檢查打字輸入
         typeInput.addEventListener('input', handleTypingInput);
 
-        // 快捷鍵：按 Enter 鍵重複發英文音
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && currentIndex < wordList.length && !isLocking) {
                 window.speechSynthesis.cancel();
@@ -227,7 +308,7 @@
         window.location.href = 'login.html'; 
     }
 
-    // 從資料庫撈取動態分類
+    // 修改此函式以套用 Slim Select 搜尋選單
     async function loadCategoriesFromSupabase() {
         const { data, error } = await supabaseClient
             .from('categories')
@@ -239,7 +320,20 @@
             return;
         }
 
+        // 若已有實例先銷毀
+        if (slimSelectInstance) {
+            slimSelectInstance.destroy();
+        }
+
         dbSelect.innerHTML = '';
+        
+        // 插入 data-placeholder 屬性的空選項
+        const placeholderOpt = document.createElement('option');
+        placeholderOpt.setAttribute('data-placeholder', 'true');
+        placeholderOpt.value = '';
+        placeholderOpt.innerText = '請選擇或搜尋分類...';
+        dbSelect.appendChild(placeholderOpt);
+
         if (data && data.length > 0) {
             data.forEach(cat => {
                 const opt = document.createElement('option');
@@ -247,7 +341,22 @@
                 opt.innerText = `${cat.name} (${cat.code})`;
                 dbSelect.appendChild(opt);
             });
-            // 自動加載第一個分類的單字
+            
+            // 預設指向第一個實際的雲端分類
+            dbSelect.value = data[0].code;
+
+            // 初始化 Slim Select (參數與 word_test.html 完全一致)
+            slimSelectInstance = new SlimSelect({
+                select: '#db-select',
+                settings: {
+                    showSearch: true,           
+                    searchHighlight: true,      
+                    placeholderText: '🔍 請選擇或搜尋分類...',
+                    searchPlaceholder: '輸入分類名稱或代碼進行搜尋...',
+                    searchText: '找不到相符的分類 😢'
+                }
+            });
+
             loadWordsFromSupabase();
         } else {
             dbSelect.innerHTML = '<option value="">⚠️ 雲端目前未設定任何分類</option>';
@@ -257,7 +366,6 @@
         }
     }
 
-    // 從資料庫撈取單字並打亂排序
     async function loadWordsFromSupabase() {
         if (!supabaseClient || !currentUser) return;
         const targetCategory = dbSelect.value;
@@ -281,10 +389,28 @@
             return;
         }
 
-        wordList = wordsData || [];
+        if (currentMode === 'marked') {
+            const { data: statsData } = await supabaseClient
+                .from('user_word_stats')
+                .select('word_id, is_starred')
+                .eq('user_id', currentUser.id);
+
+            const starMap = {};
+            if (statsData) {
+                statsData.forEach(item => { starMap[item.word_id] = item.is_starred; });
+            }
+
+            wordList = (wordsData || [])
+                .map(w => ({
+                    ...w,
+                    is_starred: starMap[w.id] || false
+                }))
+                .filter(w => w.is_starred === true);
+        } else {
+            wordList = wordsData || [];
+        }
 
         if (wordList.length > 0) {
-            // 隨機排序單字
             wordList.sort(() => Math.random() - 0.5);
             currentIndex = 0;
             isLocking = false;
@@ -295,13 +421,16 @@
             showWord();
         } else {
             enWord.textContent = "空字庫";
-            chWord.textContent = "此分類目前沒有單字。";
+            if (currentMode === 'marked') {
+                chWord.textContent = "此分類目前沒有標記的單字。";
+            } else {
+                chWord.textContent = "此分類目前沒有單字。";
+            }
             hintWord.textContent = "";
             progressBar.textContent = "進度: 0 / 0";
         }
     }
 
-    // 顯示題目
     function showWord() {
         if (currentIndex >= wordList.length) {
             endSession();
@@ -314,7 +443,6 @@
         enWord.textContent = currentData.en;     
         chWord.textContent = currentData.ch;     
         
-        // 判斷雲端資料是否有 hint
         if (currentData.hint) {
             hintWord.textContent = `( 提示: ${currentData.hint} )`; 
         } else {
@@ -325,7 +453,6 @@
         resultMsg.textContent = '';              
         typeInput.focus();
         
-        // 自動朗讀
         speak(currentData.en, 'en-US', () => {
             speak(currentData.ch, 'zh-TW');
         });
@@ -351,7 +478,6 @@
             }, 1200);
             
         } else if (correctWord.toLowerCase().startsWith(userTyped.toLowerCase())) {
-            // 支援大小寫模糊輸入檢查提示，但最終必須完全一致
             resultMsg.textContent = "輸入中...";
             resultMsg.className = "result";
         } else {
@@ -360,7 +486,6 @@
         }
     }
 
-    // 瀏覽器發音
     function speak(text, lang, onEndCallback = null) {
         if ('speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(text);
@@ -373,15 +498,15 @@
         }
     }
 
-    // 結束畫面渲染
     function endSession() {
         window.speechSynthesis.cancel();
         speak("恭喜你，完成所有單字練習！", "zh-TW");
 
         const exerciseSection = document.getElementById('exercise-section');
+        const modeText = currentMode === 'marked' ? '標記' : '';
         exerciseSection.innerHTML = `
             <div class="summary-title">🎉 練習結束！</div>
-            <p style="font-size: 18px; color: #555;">你已經成功挑戰了這個字庫的所有單字！</p>
+            <p style="font-size: 18px; color: #555;">你已經成功挑戰了這個字庫的所有${modeText}單字！</p>
             <div style="font-size: 48px; margin: 20px 0;">🏆</div>
             <button onclick="location.reload()" style="background-color: #3498db; margin-top: 20px;">再練習一次</button>
         `;
