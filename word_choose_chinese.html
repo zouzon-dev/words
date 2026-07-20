@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>英文單字選擇題測驗</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slim-select/2.8.1/slimselect.min.css" />
+    
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -41,21 +44,37 @@
 
         .selector-group {
             margin: 15px 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            display: block;
             background: #fdfdfd;
             padding: 10px;
             border-radius: 4px;
             border: 1px dashed #cbd5e1;
         }
+
+        .selector-group label {
+            display: block;
+            font-weight: bold;
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        /* 確保 Slim Select 元件外觀寬度正常 */
+        .ss-main {
+            width: 100%;
+            font-size: 15px;
+            margin: 0;
+            text-align: left;
+        }
+
         select {
             padding: 8px 12px;
             font-size: 15px;
             border-radius: 4px;
             border: 1px solid #ccc;
             outline: none;
-            flex: 1;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .question-box { 
@@ -117,6 +136,7 @@
         .score-board { margin-top: 20px; font-size: 14px; color: #555; display: flex; justify-content: space-between; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/slim-select/2.8.1/slimselect.min.js"></script>
 </head>
 <body>
 
@@ -130,7 +150,7 @@
 
     <div id="main-quiz-interface">
         <div class="selector-group">
-            <label for="data-select"><strong>選擇單字分類 (Category)：</strong></label>
+            <label for="data-select">選擇單字分類 (Category)：</label>
             <select id="data-select">
                 <option value="">正在從雲端同步分類...</option>
             </select>
@@ -166,6 +186,7 @@
     
     let supabaseClient = null;
     let currentUser = null;
+    let slimSelectInstance = null; // 儲存 Slim Select 實例
 
     let wordList = [];          // 該關卡的所有單字
     let allPoolWords = [];      // 用來當作干擾項的完整字庫
@@ -214,19 +235,58 @@
     }
 
     async function loadCategoriesFromSupabase() {
-        const selectEl = document.getElementById('data-select');
-        const { data, error } = await supabaseClient.from('categories').select('code, name').order('created_at', { ascending: true });
-        if (error) return;
+        const dataSelect = document.getElementById('data-select');
+        const { data, error } = await supabaseClient
+            .from('categories')
+            .select('code, name')
+            .order('created_at', { ascending: true });
 
-        selectEl.innerHTML = '';
+        if (error) {
+            alert(`載入單字庫分類失敗：${error.message}`);
+            return;
+        }
+
+        // 若已有實例先銷毀
+        if (slimSelectInstance) {
+            slimSelectInstance.destroy();
+        }
+
+        dataSelect.innerHTML = '';
+        
+        // 插入 data-placeholder 屬性的空選項
+        const placeholderOpt = document.createElement('option');
+        placeholderOpt.setAttribute('data-placeholder', 'true');
+        placeholderOpt.value = '';
+        placeholderOpt.innerText = '請選擇或搜尋分類...';
+        dataSelect.appendChild(placeholderOpt);
+
         if (data && data.length > 0) {
             data.forEach(cat => {
                 const opt = document.createElement('option');
                 opt.value = cat.code;
                 opt.innerText = `${cat.name} (${cat.code})`;
-                selectEl.appendChild(opt);
+                dataSelect.appendChild(opt);
             });
+            
+            // 預設指向第一個實際的雲端分類
+            dataSelect.value = data[0].code;
+
+            // 初始化 Slim Select (參數與 typing.html 完全一致)
+            slimSelectInstance = new SlimSelect({
+                select: '#data-select',
+                settings: {
+                    showSearch: true,           
+                    searchHighlight: true,      
+                    placeholderText: '🔍 請選擇或搜尋分類...',
+                    searchPlaceholder: '輸入分類名稱或代碼進行搜尋...',
+                    searchText: '找不到相符的分類 😢'
+                }
+            });
+
             loadWordsFromSupabase();
+        } else {
+            dataSelect.innerHTML = '<option value="">⚠️ 雲端目前未設定任何分類</option>';
+            document.getElementById('question-word').textContent = "請先至後台新增分類";
         }
     }
 
@@ -387,7 +447,7 @@
             <p style="font-size:18px; text-align:center; font-weight:bold;">總正確率：${rate}%</p>
             <div style="text-align:center; margin-top:20px;">
                 <button class="btn-action" onclick="window.loadWordsFromSupabase()">再試一次 🔄</button>
-                <a href="history.html" style="display:inline-block; margin-left:10px; padding:12px 20px; background-color:#7f8c8d; color:white; text-decoration:none; border-radius:4px; font-size:16px; font-weight:bold;">📊 查看歷史與錯題分析</a>
+                <a href="history.html" style="display:inline-block; margin-left:10px; padding:12px 20px; background-color:#7f8c8d; color:white; text-decoration:none; border-radius:4px; font-size:16px;">查看紀錄 📊</a>
             </div>
         `;
     }
