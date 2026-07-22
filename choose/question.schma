@@ -17,6 +17,7 @@ CREATE TABLE questions (
     option_d TEXT NOT NULL,              -- 選項 D
     correct_answer CHAR(1) NOT NULL,     -- 正確答案 (A, B, C, D)
     explanation TEXT,                    -- 詳解
+	question_number INT;                 -- 題號
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
